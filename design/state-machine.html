@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>演唱会活动 - 状态机设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 100%);
+    color: #fff;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #c9a96e, #f0d99c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #8ba3be;
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  .state-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+  }
+
+  .state-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(201,169,110,0.25);
+    border-radius: 16px;
+    padding: 24px 28px;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  .state-card:hover {
+    border-color: rgba(201,169,110,0.5);
+    background: rgba(255,255,255,0.09);
+  }
+  .state-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .state-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .badge-blue { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+  .badge-amber { background: linear-gradient(135deg, #d97706, #b45309); }
+  .badge-emerald { background: linear-gradient(135deg, #059669, #047857); }
+  .badge-rose { background: linear-gradient(135deg, #e11d48, #be123c); }
+  .badge-violet { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+  .badge-slate { background: linear-gradient(135deg, #475569, #334155); }
+
+  .state-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .state-desc {
+    color: #a3b8cc;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .state-ui {
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: #c9a96e;
+    line-height: 1.7;
+  }
+  .state-ui strong { color: #f0d99c; }
+
+  .arrow {
+    text-align: center;
+    color: #c9a96e;
+    font-size: 20px;
+    margin: -8px 0;
+    opacity: 0.7;
+  }
+
+  .legend {
+    margin-top: 40px;
+    padding: 20px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .legend h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+    color: #f0d99c;
+  }
+  .legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #a3b8cc;
+    line-height: 1.5;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .gate-info {
+    display: inline-block;
+    background: rgba(201,169,110,0.15);
+    color: #c9a96e;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>「盛夏煥新 · 港樂星夜」H5 状态机设计</h1>
+  <p class="subtitle">状态机驱动单页式架构 | 一个 URL 适配全用户生命周期</p>
+
+  <div class="state-flow">
+
+    <!-- State 0 -->
+    <div class="state-card">
+      <div class="state-header">
+        <div class="state-badge badge-slate">0</div>
+        <div class="state-title">访客态（未登录）</div>
+      </div>
+      <div class="state-desc">用户从站外渠道（短信/广告/社交媒体）或站内 Banner 进入 H5，尚未登录。此状态下可浏览完整活动规则，建立信任。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>活动 KV 头图 + 演唱会排期展示（可选场次列表公开预览，完整展示 VIP / 标准档，不可选）+ 权益说明（VIP 档 / 标准档）+ 活动规则面板（默认展开）+ <strong>「登录 / 注册」按钮</strong> + 已报名余量展示（公开数据）<br>
+        <strong>核心操作：</strong>点击登录 → 唤起登录页（App 内直接跳转登录，站外跳转至登录中间页）
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- State 1 -->
+    <div class="state-card">
+      <div class="state-header">
+        <div class="state-badge badge-amber">1</div>
+        <div class="state-title">已登录未开户</div>
+      </div>
+      <div class="state-desc">用户已登录，但在云锋有鱼未完成开户（或开户流程未走完）。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>活动规则面板（默认展开）+ 当前状态提示卡片「您尚未完成开户，无法报名」+ 可选场次预览（完整展示 VIP / 标准档，完成开户并达标后可选）+ <strong>「前往开户」按钮</strong><br>
+        <strong>核心操作：</strong>点击开户 → 跳转 App 开户流程（或站外唤起 App 下载）<br>
+        <span class="gate-info">Gate：完成开户</span>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- State 2 -->
+    <div class="state-card">
+      <div class="state-header">
+        <div class="state-badge badge-rose">2</div>
+        <div class="state-title">已开户</div>
+      </div>
+      <div class="state-desc">用户已完成开户，账户总资产是否达标决定可报名的档位。资产卡片按分档规则提示：未达标标准档时提示距离标准档差额；已达到标准档但未达标 VIP 档时提示已达到标准档及距离 VIP 档差额；已达标 VIP 档时提示已达到 VIP 档。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>状态提示卡片（展示【账户总资产】完整金额并保留两位小数，与分档达标情况；未达标时卡片右下角显示「继续入金」按钮）+ 实时资产展示（每分钟刷新）+ <strong>「立即入金」按钮</strong>（未达标时）或 <strong>「填写寄票地址」按钮</strong>（已达标时）+ 场次列表（完整展示 VIP / 标准档，已达标档位可选，未达标档位提示「未达标」）<br>
+        <strong>核心操作：</strong>未达标时点击入金 → 跳转 App 入金页面 → 入金完成后返回 H5 自动刷新状态；已达标时选择场次与档位 → 填写寄票地址 → 确认提交<br>
+        <span class="gate-info">Gate：账户总资产 ≥ 10万 HKD（标准）或 ≥ 100万 HKD（VIP 档）</span>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- State 4 -->
+    <div class="state-card">
+      <div class="state-header">
+        <div class="state-badge badge-violet">4</div>
+        <div class="state-title">已报名（履约中）</div>
+      </div>
+      <div class="state-desc">用户已成功报名并锁定名额，进入票务履约阶段。此状态为终态，活动周期内不可再报名。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>报名成功确认卡片 + 接下来会发生什么（门票制作 / 寄送门票 / 签收门票）+ 收件信息展示（收件人、地址、电话）+ 到场指引；不展示底部固定 CTA，不提供物流查询功能<br>
+        <strong>核心操作：</strong>修改收件信息（截止日前）<br>
+        <span class="gate-info">终态：不可取消、不可改场次、不可二次报名</span>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- State 5 -->
+    <div class="state-card">
+      <div class="state-header">
+        <div class="state-badge badge-blue">5</div>
+        <div class="state-title">已到场 / 已结束</div>
+      </div>
+      <div class="state-desc">演出结束后，用户状态归档。用于后续数据复盘和 ROI 计算。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>活动回顾页（感谢参与）+ 满意度问卷入口（可选）；不展示活动规则板块，不展示底部固定 CTA<br>
+        <span class="gate-info">归档态：数据沉淀用于复盘</span>
+      </div>
+    </div>
+
+    <div class="arrow" style="margin-top:20px; color:#8ba3be; font-size:14px;">── 旁路分支 ──</div>
+
+    <!-- 旁路：已售罄 -->
+    <div class="state-card" style="border-color:rgba(225,29,72,0.3); background:rgba(225,29,72,0.04);">
+      <div class="state-header">
+        <div class="state-badge badge-rose">✕</div>
+        <div class="state-title">旁路：目标场次已售罄</div>
+      </div>
+      <div class="state-desc">用户在「已开户」状态下选择场次时，该场次已抢完。</div>
+      <div class="state-ui">
+        <strong>UI 渲染：</strong>弹窗提示「该场次名额已售罄」+ 推荐其他可选场次（若有）+ 提示「其他场次仍有余量，可继续选择」<br>
+        <strong>行为：</strong>返回场次列表，用户可重新选择其他场次。若所有场次均售罄，展示「名额已发放完毕」状态页。
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <h3>关键设计原则</h3>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#059669;"></div>
+      <span><strong>状态一次判定：</strong>用户进入 H5 时，后端并行查询「登录态 + 开户状态 + 资产状态 + 报名状态」，返回唯一状态码，前端据此渲染组件。</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#2563eb;"></div>
+      <span><strong>实时资产驱动：</strong>未达标用户的资产数据需要实时或准实时（建议 5 分钟内）同步，确保入金后返回 H5 能正确切换状态。</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#d97706;"></div>
+      <span><strong>库存原子锁定：</strong>用户提交报名时，后端以原子操作（数据库乐观锁/Redis 分布式锁）锁定 1 张票，防止高并发超卖。锁定成功后生成报名记录。</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#7c3aed;"></div>
+      <span><strong>3 周时间窗：</strong>距离演出不足 3 周的场次在 UI 上置灰并提示「报名已截止」，后端同时做校验拦截。</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#e11d48;"></div>
+      <span><strong>活动终身限报 1 场：</strong>后端在用户维度标记活动参与标识，已报名用户无论状态如何，进入 H5 直接渲染「已报名」状态。</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

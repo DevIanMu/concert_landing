@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>演唱会活动 - 全链路流程</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 100%);
+    color: #fff;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #c9a96e, #f0d99c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #8ba3be;
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  .flow-section {
+    margin-bottom: 40px;
+  }
+  .flow-title {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #f0d99c;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .flow-badge {
+    background: rgba(201,169,110,0.2);
+    color: #c9a96e;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+  }
+
+  .flow-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .flow-node {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(201,169,110,0.25);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+  }
+  .flow-node .node-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .flow-node .node-desc {
+    font-size: 12px;
+    color: #a3b8cc;
+    line-height: 1.4;
+  }
+  .flow-node .node-api {
+    display: inline-block;
+    margin-top: 8px;
+    background: rgba(37,99,235,0.15);
+    color: #60a5fa;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: monospace;
+  }
+  .flow-arrow {
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c9a96e;
+    font-size: 18px;
+  }
+  .flow-arrow-down {
+    text-align: center;
+    color: #c9a96e;
+    font-size: 18px;
+    padding: 6px 0;
+  }
+
+  .branch-container {
+    display: flex;
+    gap: 20px;
+    margin: 10px 0;
+  }
+  .branch {
+    flex: 1;
+  }
+  .branch-label {
+    text-align: center;
+    font-size: 13px;
+    color: #c9a96e;
+    margin-bottom: 10px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(201,169,110,0.3);
+  }
+
+  .detail-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 20px;
+  }
+  .detail-card h4 {
+    font-size: 14px;
+    color: #f0d99c;
+    margin-bottom: 10px;
+  }
+  .detail-card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .detail-card li {
+    font-size: 13px;
+    color: #a3b8cc;
+    line-height: 1.8;
+    padding-left: 16px;
+    position: relative;
+  }
+  .detail-card li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #c9a96e;
+  }
+  .detail-card .code {
+    font-family: monospace;
+    background: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #60a5fa;
+  }
+
+  .decision-box {
+    background: rgba(201,169,110,0.08);
+    border: 1px solid rgba(201,169,110,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .decision-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .decision-text {
+    font-size: 13px;
+    color: #d4c5a0;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>「盛夏煥新 · 港樂星夜」用户全链路流程</h1>
+  <p class="subtitle">站外获客链路 vs 站内转化链路 | 状态跃迁关键节点</p>
+
+  <!-- 站外链路 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <span>🌐</span>
+      <span>链路 A：站外获客（独立 H5）</span>
+      <span class="flow-badge">目标：拉新转化</span>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="node-label">触达渠道</div>
+          <div class="node-desc">短信 / 社交媒体广告<br>万通中心 LED / KOL 合作</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">点击链接</div>
+          <div class="node-desc">带渠道参数 URL<br><span class="code">?source=sms&channel=offgrid</span></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">浏览器打开 H5</div>
+          <div class="node-desc">独立 H5 页面加载<br>活动 KV + 规则展示</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">状态判定 API</div>
+          <div class="node-desc">后端返回用户状态码<br>决定渲染哪个组件</div>
+          <span class="node-api">GET /api/concert/status</span>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">↓</div>
+
+      <div class="branch-container">
+        <div class="branch">
+          <div class="branch-label">未登录 → 注册/登录</div>
+          <div class="flow-node">
+            <div class="node-label">唤起登录</div>
+            <div class="node-desc">跳转至统一登录页<br>支持手机号/邮箱</div>
+            <span class="node-api">POST /api/auth/login</span>
+          </div>
+          <div class="flow-arrow-down">↓</div>
+          <div class="flow-node">
+            <div class="node-label">登录后重定向</div>
+            <div class="node-desc">携带登录态 Token<br>返回 H5 页面</div>
+          </div>
+        </div>
+        <div class="branch">
+          <div class="branch-label">已登录 → 状态判定</div>
+          <div class="flow-node">
+            <div class="node-label">并行状态查询</div>
+            <div class="node-desc">开户 / 资产 / 报名<br>一次性返回完整状态</div>
+            <span class="node-api">GET /api/concert/status</span>
+          </div>
+          <div class="flow-arrow-down">↓</div>
+          <div class="flow-node">
+            <div class="node-label">渲染对应状态组件</div>
+            <div class="node-desc">未开户 / 未达标 / 已达标<br>差异化 UI 展示</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">↓</div>
+
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="node-label">未开户用户</div>
+          <div class="node-desc">展示「前往开户」按钮<br>跳转 App 下载页 / 开户流程</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">开户完成</div>
+          <div class="node-desc">用户完成开户<br>返回 H5 刷新状态</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">未达标用户</div>
+          <div class="node-desc">实时资产展示<br>「立即入金」引导</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">入金达标</div>
+          <div class="node-desc">资产达标后<br>自动切换为「已达标」状态</div>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">↓</div>
+
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="node-label">已达标：选择场次</div>
+          <div class="node-desc">展示可选场次列表<br>实时余量 + 3 周时间窗过滤</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">填写地址</div>
+          <div class="node-desc">收件人 / 电话 / 详细地址<br>香港地址自动校验</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">提交报名</div>
+          <div class="node-desc">库存原子锁定<br>生成报名记录</div>
+          <span class="node-api">POST /api/concert/register</span>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">报名成功</div>
+          <div class="node-desc">展示确认页<br>物流追踪 + 到场指引</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 站内链路 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <span>📱</span>
+      <span>链路 B：站内转化（App 内 WebView）</span>
+      <span class="flow-badge">目标：存量激活</span>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="node-label">触达渠道</div>
+          <div class="node-desc">App Push 通知<br>首页 Banner / 弹窗</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">点击打开</div>
+          <div class="node-desc">App 内打开 WebView<br>自动携带登录态 Token</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">WebView 加载 H5</div>
+          <div class="node-desc">同一套 H5 页面<br>自动注入登录信息</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">状态判定 API</div>
+          <div class="node-desc">Token 鉴权后返回状态<br>无需再次登录</div>
+          <span class="node-api">GET /api/concert/status</span>
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">↓</div>
+
+      <div class="decision-box">
+        <span class="decision-icon">🔀</span>
+        <div class="decision-text">
+          <strong>状态分流：</strong>根据用户当前状态（未开户 / 已开户 / 已报名），直接渲染对应组件。「已开户」状态下资产是否达标由账户总资产动态判定。<br>
+          站内用户通常已开户，主要落在「未达标」或「已达标」状态，路径更短。
+        </div>
+      </div>
+
+      <div class="flow-arrow-down">↓</div>
+
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="node-label">未达标</div>
+          <div class="node-desc">展示账户总资产<br>「一键入金」跳转原生入金页</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">入金完成</div>
+          <div class="node-desc">返回 WebView 自动刷新<br>资产数据准实时同步</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">已达标</div>
+          <div class="node-desc">场次选择 + 地址填写<br>同站外链路</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="node-label">已报名</div>
+          <div class="node-desc">履约信息展示<br>物流 + 到场指引</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关键差异对比 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <span>⚡</span>
+      <span>双链路关键差异</span>
+    </div>
+    <div class="detail-card">
+      <h4>登录态处理</h4>
+      <ul>
+        <li><strong>站外 H5：</strong>用户首次进入无登录态，需要手动登录。登录完成后重定向回 H5，需妥善处理 Token 传递和页面刷新。</li>
+        <li><strong>App WebView：</strong>App 自动注入登录 Token（如通过 URL 参数或 JS Bridge），H5 无需额外登录步骤。</li>
+      </ul>
+    </div>
+    <div class="detail-card">
+      <h4>跳转 App 开户/入金</h4>
+      <ul>
+        <li><strong>站外 H5：</strong>未开户用户点击「前往开户」，需要先引导下载 App（或跳转应用商店），下载后完成开户，再手动返回 H5。链路长，流失率高。建议：跳转至中间页（"请在 App 内完成开户，完成后点击刷新"），并提供 Deep Link 直接唤起 App。</li>
+        <li><strong>App WebView：</strong>直接通过 JS Bridge 唤起原生开户/入金流程，完成后自动返回 WebView，体验最流畅。</li>
+      </ul>
+    </div>
+    <div class="detail-card">
+      <h4>地址填写</h4>
+      <ul>
+        <li><strong>站外 H5：</strong>需要用户手动输入完整地址，建议增加香港地址自动补全（基于输入联想）。</li>
+        <li><strong>App WebView：</strong>可通过 JS Bridge 读取用户在 App 内保存的地址簿，自动填充，减少输入成本。</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
