@@ -152,6 +152,24 @@
       color: var(--ink);
     }
 
+    .h5-header .lang-switcher {
+      position: absolute;
+      right: 16px;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-pill);
+      background: var(--canvas);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+    .h5-header .lang-switcher:focus {
+      box-shadow: 0 0 0 2px rgba(0,82,255,0.2);
+    }
+
     /* KV 头图 */
     .hero {
       position: relative;
@@ -897,7 +915,7 @@
     <!-- 固定底部 CTA（JS 控制文案与可用性） -->
     <div class="cta-bar" id="ctaBar">
       <div class="cta-row" id="ctaRow">
-        <button class="cta-button secondary hidden" id="cancelCta">取消</button>
+        <button class="cta-button secondary hidden" id="cancelCta"></button>
         <button class="cta-button" id="mainCta"></button>
       </div>
       <div class="muted-note" id="ctaNote"></div>
@@ -984,6 +1002,399 @@
     const cancelCta = document.getElementById('cancelCta');
     const ctaNote = document.getElementById('ctaNote');
     const toast = document.getElementById('toast');
+    // ============================================================
+    // 多语言
+    // ============================================================
+    const I18N = {
+      'zh-CN': {
+        pageTitle: 'Prototype - 演唱会活动落地页状态机 Demo',
+        headerTitle: '活动中心',
+        brandName: '云锋有鱼',
+        heroTitle: '盛夏焕新<br>港乐星夜',
+        benefitsTitle: '限时优享权益',
+        benefitVipTitle: 'VIP 专属席位',
+        benefitVipDesc: '账户总资产 ≥ 100 万 HKD 可享 VIP 门票',
+        benefitStandardTitle: '标准档门票',
+        benefitStandardDesc: '账户总资产 ≥ 10 万 HKD 可享标准门票',
+        rulesTitle: '活动规则',
+        rule1: '账户总资产达到对应门槛（标准档 10 万 HKD / VIP 档 100 万 HKD），即可免费领取对应演唱会门票权益，无需额外支付票价。',
+        rule2: '「账户资产」为云锋有鱼 APP 交易页卡展示的账户总资产，涵盖股票、基金、虚拟资产、现金等。',
+        rule3: '每场演出前 3 周截止报名；距演出不足 3 周的场次将不可选。',
+        rule4: '整个活动周期内，同一用户限报 1 场，报名成功后不可取消、不可改场次。',
+        rule5: '门票将以实体票形式寄送，请确保收件地址准确；报名截止日前可修改地址。',
+        rule6: '云锋证券有限公司保留对活动的最终解释权，并有权修改、补充或终止活动。',
+        stateGuestTitle: '活动报名已开放',
+        stateGuestDesc: '登录后即可查看您的达标状态，并选择心仪场次报名。',
+        stateNoAccountTitle: '您尚未完成开户',
+        stateNoAccountDesc: '完成开户后，即可根据资产达标情况报名对应场次。',
+        statusNoneTitle: '账户总资产尚未达标',
+        statusStandardTitle: '已达到标准档',
+        statusVipTitle: '已达到 VIP 档',
+        gapToStandard: '距离标准档还差 <strong>{gap}</strong>，入金达标后即可报名标准档。',
+        gapToVip: '已达到标准档，距离 VIP 档还差 <strong>{gap}</strong>。',
+        statusVipReady: '已达到 VIP 档，可立即报名。',
+        assetLabel: '账户总资产',
+        depositBtn: '继续入金',
+        statusBadgeQualified: '已达标 · 可立即报名',
+        vipCustomer: 'VIP 档客户',
+        standardCustomer: '标准档客户',
+        eventsTitle: '可选场次',
+        eventsNoteDefault: '满足门槛即可免费领取',
+        eventsNoteLocked: '达标后即可选择',
+        eventsNoteLogin: '登录后可选',
+        eventsNoteOpenAccount: '完成开户并达标后可选',
+        stockOk: '可报名',
+        stockLow: '余量紧张',
+        stockOut: '报名已截止',
+        ticketVip: 'VIP 档',
+        ticketStandard: '标准档',
+        soldOut: '已售罄',
+        remaining: '剩 {n} 张',
+        ticketNoteLocked: '达标后可选',
+        ticketNoteQualified: '达标即赠',
+        ticketNoteUnqualified: '未达标',
+        ticketPriceLabel: '票面',
+        addressTitleAdd: '填写寄票地址',
+        addressTitleEdit: '修改收件信息',
+        addressSummaryLabel: '已选场次 / 档位',
+        labelRecipient: '收件人姓名',
+        placeholderRecipient: '请输入姓名',
+        labelCountry: '国家 / 地区',
+        labelAddress: '详细地址',
+        placeholderAddress: '请输入详细地址',
+        labelPhone: '联系电话',
+        autoFillBtn: '使用我的开户地址',
+        addressHint: '实体票将于报名截止后 5 个工作日内寄出。收件人、手机号、地址均为必填项。',
+        errorRecipient: '收件人姓名不能为空',
+        errorAddress: '详细地址不能为空',
+        errorPhone: '联系电话不能为空',
+        registeredSuccessTitle: '✅ 报名成功',
+        registeredSuccessDesc1: '您的门票已确认预留',
+        registeredSuccessDesc2: '我们将于演出前 <strong>7-10 天</strong><br>将实体票寄送至您填写的地址',
+        sectionNext: '接下来会发生什么',
+        step1Title: '门票制作',
+        step1Desc: '报名成功后，我们将统一安排门票制作',
+        step2Title: '寄送门票',
+        step2Desc: '制作完成后，将门票寄出<br>寄出时您将收到邮件通知',
+        step3Title: '签收门票',
+        step3Desc: '请保持手机畅通，及时签收',
+        sectionShipping: '收件信息',
+        infoRecipient: '收件人：',
+        infoAddress: '地址：',
+        infoPhone: '电话：',
+        editAddressBtn: '[修改收件信息]',
+        editDeadline: '（{date}前可修改）',
+        sectionAttendance: '到场须知',
+        attendanceTicket: '请携带实体门票入场',
+        attendanceGift: '现场设有云锋有鱼专属应援礼包领取点',
+        endedTitle: '感谢参与',
+        endedDesc: '「盛夏焕新 · 港乐星夜」活动已结束，期待与您在更多活动中相遇。',
+        surveyTitle: '满意度问卷',
+        surveyDesc: '您的反馈将帮助我们提供更好的权益活动体验。',
+        ctaLogin: '登录 / 注册',
+        ctaOpenAccount: '前往开户',
+        ctaDeposit: '立即入金',
+        ctaAddress: '填写寄票地址',
+        ctaSubmit: '确认提交',
+        ctaSave: '保存',
+        ctaCancel: '取消',
+        ctaNoteLogin: '登录后查看您的达标状态',
+        ctaNoteOpenAccount: '完成开户后报名',
+        ctaNoteDeposit: '达标后即可选择场次',
+        ctaNoteAddress: '确认选择后填写收件信息',
+        ctaNoteSubmit: '提交后将锁定名额',
+        ctaNoteSave: '保存后将更新收件信息',
+        ctaNoteSelectFirst: '请先选择场次与档位',
+        toastLogin: '跳转登录页',
+        toastOpenAccount: '跳转开户流程',
+        toastDeposit: '跳转入金页',
+        toastAutoFill: '已使用开户地址',
+        toastSelectFirst: '请先选择场次与档位',
+        toastSaveSuccess: '保存成功！',
+        toastRegisterSuccess: '报名成功！',
+        countryCN: '中国大陆',
+        countryHK: '中国香港',
+        phonePlaceholderCN: '请输入手机号',
+        phonePlaceholderHK: '请输入 8 位手机号',
+        sampleRecipient: '张三',
+        sampleAddress: '香港九龙尖沙咀...',
+        samplePhone: '9123 4567',
+        statusNone: '未达标标准档',
+        statusStandard: '已达到标准档，未达标 VIP 档',
+        statusVip: '已达到 VIP 档',
+        tierStandard: '标准档',
+        tierVip: 'VIP 档'
+      },
+      'zh-TW': {
+        pageTitle: 'Prototype - 演唱會活動落地頁狀態機 Demo',
+        headerTitle: '活動中心',
+        brandName: '雲鋒有魚',
+        heroTitle: '盛夏煥新<br>港樂星夜',
+        benefitsTitle: '限時優享權益',
+        benefitVipTitle: 'VIP 專屬席位',
+        benefitVipDesc: '帳戶總資產 ≥ 100 萬 HKD 可享 VIP 門票',
+        benefitStandardTitle: '標準檔門票',
+        benefitStandardDesc: '帳戶總資產 ≥ 10 萬 HKD 可享標準門票',
+        rulesTitle: '活動規則',
+        rule1: '帳戶總資產達到對應門檻（標準檔 10 萬 HKD / VIP 檔 100 萬 HKD），即可免費領取對應演唱會門票權益，無需額外支付票價。',
+        rule2: '「帳戶資產」為雲鋒有魚 APP 交易頁卡展示的帳戶總資產，涵蓋股票、基金、虛擬資產、現金等。',
+        rule3: '每場演出前 3 週截止報名；距演出不足 3 週的場次將不可選。',
+        rule4: '整個活動週期內，同一用戶限報 1 場，報名成功後不可取消、不可改場次。',
+        rule5: '門票將以實體票形式寄送，請確保收件地址準確；報名截止日前可修改地址。',
+        rule6: '雲鋒證券有限公司保留對活動的最終解釋權，並有權修改、補充或終止活動。',
+        stateGuestTitle: '活動報名已開放',
+        stateGuestDesc: '登入後即可查看您的達標狀態，並選擇心儀場次報名。',
+        stateNoAccountTitle: '您尚未完成開戶',
+        stateNoAccountDesc: '完成開戶後，即可根據資產達標情況報名對應場次。',
+        statusNoneTitle: '帳戶總資產尚未達標',
+        statusStandardTitle: '已達到標準檔',
+        statusVipTitle: '已達到 VIP 檔',
+        gapToStandard: '距離標準檔還差 <strong>{gap}</strong>，入金達標後即可報名標準檔。',
+        gapToVip: '已達到標準檔，距離 VIP 檔還差 <strong>{gap}</strong>。',
+        statusVipReady: '已達到 VIP 檔，可立即報名。',
+        assetLabel: '帳戶總資產',
+        depositBtn: '繼續入金',
+        statusBadgeQualified: '已達標 · 可立即報名',
+        vipCustomer: 'VIP 檔客戶',
+        standardCustomer: '標準檔客戶',
+        eventsTitle: '可選場次',
+        eventsNoteDefault: '滿足門檻即可免費領取',
+        eventsNoteLocked: '達標後即可選擇',
+        eventsNoteLogin: '登入後可選',
+        eventsNoteOpenAccount: '完成開戶並達標後可選',
+        stockOk: '可報名',
+        stockLow: '餘量緊張',
+        stockOut: '報名已截止',
+        ticketVip: 'VIP 檔',
+        ticketStandard: '標準檔',
+        soldOut: '已售罄',
+        remaining: '剩 {n} 張',
+        ticketNoteLocked: '達標後可選',
+        ticketNoteQualified: '達標即贈',
+        ticketNoteUnqualified: '未達標',
+        ticketPriceLabel: '票面',
+        addressTitleAdd: '填寫寄票地址',
+        addressTitleEdit: '修改收件資訊',
+        addressSummaryLabel: '已選場次 / 檔位',
+        labelRecipient: '收件人姓名',
+        placeholderRecipient: '請輸入姓名',
+        labelCountry: '國家 / 地區',
+        labelAddress: '詳細地址',
+        placeholderAddress: '請輸入詳細地址',
+        labelPhone: '聯繫電話',
+        autoFillBtn: '使用我的開戶地址',
+        addressHint: '實體票將於報名截止後 5 個工作日內寄出。收件人、手機號、地址均為必填項。',
+        errorRecipient: '收件人姓名不能為空',
+        errorAddress: '詳細地址不能為空',
+        errorPhone: '聯繫電話不能為空',
+        registeredSuccessTitle: '✅ 報名成功',
+        registeredSuccessDesc1: '您的門票已確認預留',
+        registeredSuccessDesc2: '我們將於演出前 <strong>7-10 天</strong><br>將實體票寄送至您填寫的地址',
+        sectionNext: '接下來會發生什麼',
+        step1Title: '門票製作',
+        step1Desc: '報名成功後，我們將統一安排門票製作',
+        step2Title: '寄送門票',
+        step2Desc: '製作完成後，將門票寄出<br>寄出時您將收到郵件通知',
+        step3Title: '簽收門票',
+        step3Desc: '請保持手機暢通，及時簽收',
+        sectionShipping: '收件資訊',
+        infoRecipient: '收件人：',
+        infoAddress: '地址：',
+        infoPhone: '電話：',
+        editAddressBtn: '[修改收件資訊]',
+        editDeadline: '（{date}前可修改）',
+        sectionAttendance: '到場須知',
+        attendanceTicket: '請攜帶實體門票入場',
+        attendanceGift: '現場設有雲鋒有魚專屬應援禮包領取點',
+        endedTitle: '感謝參與',
+        endedDesc: '「盛夏煥新 · 港樂星夜」活動已結束，期待與您在更多活動中相遇。',
+        surveyTitle: '滿意度問卷',
+        surveyDesc: '您的反饋將幫助我們提供更好的權益活動體驗。',
+        ctaLogin: '登入 / 註冊',
+        ctaOpenAccount: '前往開戶',
+        ctaDeposit: '立即入金',
+        ctaAddress: '填寫寄票地址',
+        ctaSubmit: '確認提交',
+        ctaSave: '儲存',
+        ctaCancel: '取消',
+        ctaNoteLogin: '登入後查看您的達標狀態',
+        ctaNoteOpenAccount: '完成開戶後報名',
+        ctaNoteDeposit: '達標後即可選擇場次',
+        ctaNoteAddress: '確認選擇後填寫收件資訊',
+        ctaNoteSubmit: '提交後將鎖定名額',
+        ctaNoteSave: '儲存後將更新收件資訊',
+        ctaNoteSelectFirst: '請先選擇場次與檔位',
+        toastLogin: '跳轉登入頁',
+        toastOpenAccount: '跳轉開戶流程',
+        toastDeposit: '跳轉入金頁',
+        toastAutoFill: '已使用開戶地址',
+        toastSelectFirst: '請先選擇場次與檔位',
+        toastSaveSuccess: '儲存成功！',
+        toastRegisterSuccess: '報名成功！',
+        countryCN: '中國大陸',
+        countryHK: '中國香港',
+        phonePlaceholderCN: '請輸入手機號',
+        phonePlaceholderHK: '請輸入 8 位手機號',
+        sampleRecipient: '張三',
+        sampleAddress: '香港九龍尖沙咀...',
+        samplePhone: '9123 4567',
+        statusNone: '未達標標準檔',
+        statusStandard: '已達到標準檔，未達標 VIP 檔',
+        statusVip: '已達到 VIP 檔',
+        tierStandard: '標準檔',
+        tierVip: 'VIP 檔'
+      },
+      'en': {
+        pageTitle: 'Prototype - Concert Event Landing Page State Machine Demo',
+        headerTitle: 'Events',
+        brandName: 'Yunfeng Youyu',
+        heroTitle: 'Summer Refresh<br>HK Music Night',
+        benefitsTitle: 'Limited Benefits',
+        benefitVipTitle: 'VIP Exclusive Seat',
+        benefitVipDesc: 'Total assets ≥ 1M HKD for VIP ticket',
+        benefitStandardTitle: 'Standard Ticket',
+        benefitStandardDesc: 'Total assets ≥ 100K HKD for standard ticket',
+        rulesTitle: 'Event Rules',
+        rule1: 'Users whose total account assets reach the threshold (Standard: 100K HKD / VIP: 1M HKD) can redeem the corresponding concert ticket benefit for free; no additional ticket payment is required.',
+        rule2: '"Account assets" refers to the total account assets shown on the Yunfeng Youyu APP trading page, covering stocks, funds, virtual assets, cash, etc.',
+        rule3: 'Registration closes 3 weeks before each show; shows less than 3 weeks away cannot be selected.',
+        rule4: 'Each user may register for only 1 show during the entire event period. After successful registration, cancellation or show changes are not allowed.',
+        rule5: 'Tickets will be sent as physical tickets. Please ensure the shipping address is accurate; the address can be modified before the registration deadline.',
+        rule6: 'Yunfeng Securities Limited reserves the right of final interpretation of the event and may modify, supplement, or terminate the event.',
+        stateGuestTitle: 'Registration Now Open',
+        stateGuestDesc: 'Log in to view your qualification status and register for your preferred show.',
+        stateNoAccountTitle: 'Account Opening Not Completed',
+        stateNoAccountDesc: 'After opening an account, you can register for the corresponding show based on your asset qualification.',
+        statusNoneTitle: 'Total Assets Not Yet Qualified',
+        statusStandardTitle: 'Standard Tier Reached',
+        statusVipTitle: 'VIP Tier Reached',
+        gapToStandard: '<strong>{gap}</strong> away from Standard tier. Deposit to qualify.',
+        gapToVip: 'Standard tier reached, <strong>{gap}</strong> away from VIP tier.',
+        statusVipReady: 'VIP tier reached, register now.',
+        assetLabel: 'Total Account Assets',
+        depositBtn: 'Deposit More',
+        statusBadgeQualified: 'Qualified · Register Now',
+        vipCustomer: 'VIP Customer',
+        standardCustomer: 'Standard Customer',
+        eventsTitle: 'Available Shows',
+        eventsNoteDefault: 'Free once threshold is met',
+        eventsNoteLocked: 'Select after qualification',
+        eventsNoteLogin: 'Available after login',
+        eventsNoteOpenAccount: 'Available after account opening & qualification',
+        stockOk: 'Available',
+        stockLow: 'Low Stock',
+        stockOut: 'Registration Closed',
+        ticketVip: 'VIP',
+        ticketStandard: 'Standard',
+        soldOut: 'Sold Out',
+        remaining: '{n} left',
+        ticketNoteLocked: 'Select after qualified',
+        ticketNoteQualified: 'Free if qualified',
+        ticketNoteUnqualified: 'Not qualified',
+        ticketPriceLabel: 'Face value',
+        addressTitleAdd: 'Shipping Address',
+        addressTitleEdit: 'Edit Shipping Info',
+        addressSummaryLabel: 'Selected Show / Tier',
+        labelRecipient: 'Recipient Name',
+        placeholderRecipient: 'Enter name',
+        labelCountry: 'Country / Region',
+        labelAddress: 'Address',
+        placeholderAddress: 'Enter address',
+        labelPhone: 'Contact Phone',
+        autoFillBtn: 'Use Account Address',
+        addressHint: 'Physical tickets will be shipped within 5 business days after the registration deadline. Recipient, mobile number, and address are all required.',
+        errorRecipient: 'Recipient name is required',
+        errorAddress: 'Address is required',
+        errorPhone: 'Phone number is required',
+        registeredSuccessTitle: '✅ Registered',
+        registeredSuccessDesc1: 'Your ticket has been reserved',
+        registeredSuccessDesc2: 'We will ship the physical ticket to your address <strong>7-10 days</strong> before the show',
+        sectionNext: 'What Happens Next',
+        step1Title: 'Ticket Production',
+        step1Desc: 'After registration, we will arrange ticket production',
+        step2Title: 'Ticket Shipping',
+        step2Desc: 'Once produced, tickets will be shipped<br>You will receive an email notification when shipped',
+        step3Title: 'Ticket Receipt',
+        step3Desc: 'Please keep your phone available to receive the ticket',
+        sectionShipping: 'Shipping Info',
+        infoRecipient: 'Recipient:',
+        infoAddress: 'Address:',
+        infoPhone: 'Phone:',
+        editAddressBtn: '[Edit Shipping Info]',
+        editDeadline: '(Editable before {date})',
+        sectionAttendance: 'Attendance Notes',
+        attendanceTicket: 'Please bring your physical ticket to enter',
+        attendanceGift: 'Exclusive Yunfeng Youyu gift pickup on-site',
+        endedTitle: 'Thank You',
+        endedDesc: '"Summer Refresh · HK Music Night" has ended. We look forward to seeing you at future events.',
+        surveyTitle: 'Satisfaction Survey',
+        surveyDesc: 'Your feedback helps us provide better event experiences.',
+        ctaLogin: 'Log In / Sign Up',
+        ctaOpenAccount: 'Open Account',
+        ctaDeposit: 'Deposit Now',
+        ctaAddress: 'Enter Address',
+        ctaSubmit: 'Submit',
+        ctaSave: 'Save',
+        ctaCancel: 'Cancel',
+        ctaNoteLogin: 'Check qualification after login',
+        ctaNoteOpenAccount: 'Register after account opening',
+        ctaNoteDeposit: 'Select shows after qualification',
+        ctaNoteAddress: 'Fill shipping info after selection',
+        ctaNoteSubmit: 'Seat will be locked after submit',
+        ctaNoteSave: 'Shipping info will be updated',
+        ctaNoteSelectFirst: 'Please select event and tier first',
+        toastLogin: 'Go to login',
+        toastOpenAccount: 'Go to account opening',
+        toastDeposit: 'Go to deposit',
+        toastAutoFill: 'Account address used',
+        toastSelectFirst: 'Please select event and tier first',
+        toastSaveSuccess: 'Saved!',
+        toastRegisterSuccess: 'Registered!',
+        countryCN: 'Mainland China',
+        countryHK: 'Hong Kong, China',
+        phonePlaceholderCN: 'Enter mobile number',
+        phonePlaceholderHK: 'Enter 8-digit mobile number',
+        sampleRecipient: 'John Doe',
+        sampleAddress: '123 Nathan Road, Tsim Sha Tsui...',
+        samplePhone: '9123 4567',
+        statusNone: 'Not qualified for Standard tier',
+        statusStandard: 'Standard tier reached, not yet VIP',
+        statusVip: 'VIP tier reached',
+        tierStandard: 'Standard',
+        tierVip: 'VIP'
+      }
+    };
+
+    let currentLang = localStorage.getItem('concertLang') || document.documentElement.lang || 'zh-CN';
+    if (!I18N[currentLang]) currentLang = 'zh-CN';
+
+    function t(key, vars) {
+      let str = (I18N[currentLang] && I18N[currentLang][key]) || I18N['zh-CN'][key] || key;
+      if (vars) {
+        str = str.replace(/\{(\w+)\}/g, (m, k) => vars[k] !== undefined ? vars[k] : m);
+      }
+      return str;
+    }
+
+    function renderLangSelector() {
+      return `
+        <select class="lang-switcher" onchange="changeLanguage(this.value)">
+          <option value="zh-CN" ${currentLang === 'zh-CN' ? 'selected' : ''}>简</option>
+          <option value="zh-TW" ${currentLang === 'zh-TW' ? 'selected' : ''}>繁</option>
+          <option value="en" ${currentLang === 'en' ? 'selected' : ''}>En</option>
+        </select>
+      `;
+    }
+
+    function changeLanguage(lang) {
+      if (!I18N[lang]) return;
+      currentLang = lang;
+      localStorage.setItem('concertLang', lang);
+      document.documentElement.lang = lang;
+      render();
+    }
+    window.changeLanguage = changeLanguage;
+
 
     // 当前原型交互状态
     let current = {
@@ -1015,11 +1426,11 @@
       const STANDARD = 10;
       const VIP = 100;
       if (assetWan < STANDARD) {
-        return { level: 'none', reached: '未达标', nextLabel: '标准档', nextThreshold: STANDARD, gap: STANDARD - assetWan };
+        return { level: 'none', reached: t('statusNone'), nextLabel: t('tierStandard'), nextThreshold: STANDARD, gap: STANDARD - assetWan };
       } else if (assetWan < VIP) {
-        return { level: 'standard', reached: '标准档', nextLabel: 'VIP 档', nextThreshold: VIP, gap: VIP - assetWan };
+        return { level: 'standard', reached: t('tierStandard'), nextLabel: t('tierVip'), nextThreshold: VIP, gap: VIP - assetWan };
       } else {
-        return { level: 'vip', reached: 'VIP 档', nextLabel: null, nextThreshold: null, gap: 0 };
+        return { level: 'vip', reached: t('tierVip'), nextLabel: null, nextThreshold: null, gap: 0 };
       }
     }
 
@@ -1038,7 +1449,8 @@
       return `
         <div class="h5-header">
           <div class="back">‹</div>
-          <div class="title">活动中心</div>
+          <div class="title">${t('headerTitle')}</div>
+          ${renderLangSelector()}
         </div>
       `;
     }
@@ -1048,7 +1460,7 @@
         <section class="hero">
           <div class="hero-brand">
             <div class="logo">云</div>
-            <span>云锋有鱼</span>
+            <span>${t('brandName')}</span>
           </div>
           <div class="hero-content">
             <h1>${title}</h1>
@@ -1077,17 +1489,17 @@
     function renderBenefits() {
       return `
         <div class="benefits">
-          <div class="benefits-title">限时优享权益</div>
+          <div class="benefits-title">${t('benefitsTitle')}</div>
           <div class="benefit-grid">
             <div class="benefit-item">
               <div class="icon">🎫</div>
-              <h3>VIP 专属席位</h3>
-              <p>账户总资产 ≥ 100 万 HKD 可享 VIP 门票</p>
+              <h3>${t('benefitVipTitle')}</h3>
+              <p>${t('benefitVipDesc')}</p>
             </div>
             <div class="benefit-item">
               <div class="icon">🎸</div>
-              <h3>标准档门票</h3>
-              <p>账户总资产 ≥ 10 万 HKD 可享标准门票</p>
+              <h3>${t('benefitStandardTitle')}</h3>
+              <p>${t('benefitStandardDesc')}</p>
             </div>
           </div>
         </div>
@@ -1098,16 +1510,16 @@
       return `
         <div class="rules-section">
           <div class="rules-header">
-            <span>活动规则</span>
+            <span>${t('rulesTitle')}</span>
           </div>
           <div class="rules-body">
             <ol>
-              <li>账户总资产达到对应门槛（标准档 10 万 HKD / VIP 档 100 万 HKD），即可免费领取对应演唱会门票权益，无需额外支付票价。</li>
-              <li>「账户资产」为云锋有鱼 APP 交易页卡展示的账户总资产，涵盖股票、基金、虚拟资产、现金等。</li>
-              <li>每场演出前 3 周截止报名；距演出不足 3 周的场次将不可选。</li>
-              <li>整个活动周期内，同一用户限报 1 场，报名成功后不可取消、不可改场次。</li>
-              <li>门票将以实体票形式寄送，请确保收件地址准确；报名截止日前可修改地址。</li>
-              <li>云锋证券有限公司保留对活动的最终解释权，并有权修改、补充或终止活动。</li>
+              <li>${t('rule1')}</li>
+              <li>${t('rule2')}</li>
+              <li>${t('rule3')}</li>
+              <li>${t('rule4')}</li>
+              <li>${t('rule5')}</li>
+              <li>${t('rule6')}</li>
             </ol>
           </div>
         </div>
@@ -1115,16 +1527,17 @@
     }
 
     function renderStateGuest() {
+      document.title = t('pageTitle');
       const snapshot = buildStateSnapshot(current.stateCode, current.tier, current.assetWan);
       return `
-        ${renderHero('盛夏焕新<br>港乐星夜', '')}
+        ${renderHero(t('heroTitle'), '')}
         <div class="content">
           ${renderBenefits()}
           <div class="state-card">
-            <div class="state-title">活动报名已开放</div>
-            <div class="state-desc">登录后即可查看您的达标状态，并选择心仪场次报名。</div>
+            <div class="state-title">${t('stateGuestTitle')}</div>
+            <div class="state-desc">${t('stateGuestDesc')}</div>
           </div>
-          ${renderEventsList(snapshot, false, '登录后可选', '完成开户并达标后可选')}
+          ${renderEventsList(snapshot, false, 'eventsNoteLogin', 'eventsNoteOpenAccount')}
           ${renderRules()}
         </div>
       `;
@@ -1132,14 +1545,14 @@
 
     function renderStateLoggedInNoAccount(snapshot) {
       return `
-        ${renderHero('盛夏焕新<br>港乐星夜', '')}
+        ${renderHero(t('heroTitle'), '')}
         <div class="content">
           <div class="state-card">
-            <div class="state-title">您尚未完成开户</div>
-            <div class="state-desc">完成开户后，即可根据资产达标情况报名对应场次。</div>
+            <div class="state-title">${t('stateNoAccountTitle')}</div>
+            <div class="state-desc">${t('stateNoAccountDesc')}</div>
           </div>
           ${renderBenefits()}
-          ${renderEventsList(snapshot, false, '完成开户后可选', '完成开户并达标后可选')}
+          ${renderEventsList(snapshot, false, 'eventsNoteOpenAccount', 'eventsNoteOpenAccount')}
           ${renderRules()}
         </div>
       `;
@@ -1147,17 +1560,17 @@
 
     function renderStateNotQualified(snapshot) {
       const status = assetTierStatus(snapshot.assetWan);
-      const title = '盛夏焕新<br>港乐星夜';
-      let stateTitle, gapText, badgeClass, badgeText;
+      const title = t('heroTitle');
+      let stateTitle, gapText;
       if (status.level === 'none') {
-        stateTitle = '账户总资产尚未达标';
-        gapText = `距离标准档还差 <strong>${fmtMoneyFull(status.gap)}</strong>，入金达标后即可报名标准档。`;
+        stateTitle = t('statusNoneTitle');
+        gapText = t('gapToStandard', { gap: fmtMoneyFull(status.gap) });
       } else if (status.level === 'standard') {
-        stateTitle = '已达到标准档';
-        gapText = `已达到标准档，距离 VIP 档还差 <strong>${fmtMoneyFull(status.gap)}</strong>。`;
+        stateTitle = t('statusStandardTitle');
+        gapText = t('gapToVip', { gap: fmtMoneyFull(status.gap) });
       } else {
-        stateTitle = '已达到 VIP 档';
-        gapText = '已达到 VIP 档，可立即报名。';
+        stateTitle = t('statusVipTitle');
+        gapText = t('statusVipReady');
       }
       return `
         ${renderHero(title, '')}
@@ -1165,12 +1578,12 @@
           <div class="state-card">
             <div class="state-title">${stateTitle}</div>
             <div class="asset-row">
-              <span class="label">账户总资产</span>
+              <span class="label">${t('assetLabel')}</span>
               <span class="value" style="${status.level === 'vip' ? 'color:var(--semantic-up);' : ''}">${fmtMoneyFull(snapshot.assetWan)}</span>
             </div>
             <div class="gap-row">
               <div class="gap">${gapText}</div>
-              ${status.level !== 'vip' ? `<button class="deposit-mini-btn" onclick="showToast('跳转入金页')">继续入金</button>` : ''}
+              ${status.level !== 'vip' ? `<button class="deposit-mini-btn" onclick="showToast(t('toastDeposit'))">${t('depositBtn')}</button>` : ''}
             </div>
           </div>
           ${renderEventsList(snapshot, true)}
@@ -1181,13 +1594,13 @@
 
     function renderStateQualified(snapshot) {
       return `
-        ${renderHero('盛夏焕新<br>港乐星夜', '')}
+        ${renderHero(t('heroTitle'), '')}
         <div class="content">
-          <span class="status-badge qualified">已达标 · 可立即报名</span>
+          <span class="status-badge qualified">${t('statusBadgeQualified')}</span>
           <div class="state-card" style="margin-bottom: 18px;">
-            <div class="state-title">${snapshot.tier === TIER.VIP ? 'VIP 档客户' : '标准档客户'}</div>
+            <div class="state-title">${snapshot.tier === TIER.VIP ? t('vipCustomer') : t('standardCustomer')}</div>
             <div class="asset-row">
-              <span class="label">账户总资产</span>
+              <span class="label">${t('assetLabel')}</span>
               <span class="value" style="color:var(--semantic-up);">${fmtMoneyFull(snapshot.assetWan)}</span>
             </div>
           </div>
@@ -1202,14 +1615,14 @@
       return `
         <div class="events-section">
           <div class="events-header">
-            <h3>可选场次</h3>
-            <span class="note">${hint || (interactive ? '满足门槛即可免费领取' : '达标后即可选择')}</span>
+            <h3>${t('eventsTitle')}</h3>
+            <span class="note">${hint ? t(hint) : (interactive ? t('eventsNoteDefault') : t('eventsNoteLocked'))}</span>
           </div>
           ${snapshot.events.map(ev => {
             const isClosed = ev.weeksAway <= 3;
             const selected = interactive && current.selectedEventId === ev.id;
             const statusClass = isClosed ? 'out' : ev.standardStock < 20 ? 'low' : 'ok';
-            const statusText = isClosed ? '报名已截止' : ev.standardStock < 20 ? '余量紧张' : '可报名';
+            const statusText = isClosed ? t('stockOut') : ev.standardStock < 20 ? t('stockLow') : t('stockOk');
             return `
               <div class="event-card ${isClosed || !interactive ? 'disabled' : ''} ${selected ? 'selected' : ''}" ${interactive && !isClosed ? `onclick="selectEvent(${ev.id})"` : ''}>
                 <div class="event-top">
@@ -1221,21 +1634,22 @@
                 </div>
                 ${!isClosed ? `
                   <div class="ticket-options">
-                    ${tickets.map(t => {
-                      const stock = ev[`${t.key}Stock`];
+                    ${tickets.map(tk => {
+                      const stock = ev[`${tk.key}Stock`];
                       const soldOut = stock <= 0;
-                      const qualified = canSelectTicket(t.key, snapshot.assetWan);
-                      const tSelected = selected && current.selectedTicket === t.key;
-                      const tDisabled = soldOut || !qualified || !interactive;
+                      const qualified = canSelectTicket(tk.key, snapshot.assetWan);
+                      const tkSelected = selected && current.selectedTicket === tk.key;
+                      const tkDisabled = soldOut || !qualified || !interactive;
                       const canClick = interactive && !soldOut && qualified;
+                      const label = tk.key === 'vip' ? t('ticketVip') : t('ticketStandard');
                       return `
-                        <div class="ticket-chip ${tDisabled ? 'disabled' : ''} ${tSelected ? 'selected' : ''}" ${canClick ? `onclick="event.stopPropagation(); selectTicket(${ev.id}, '${t.key}')"` : ''}>
+                        <div class="ticket-chip ${tkDisabled ? 'disabled' : ''} ${tkSelected ? 'selected' : ''}" ${canClick ? `onclick="event.stopPropagation(); selectTicket(${ev.id}, '${tk.key}')"` : ''}>
                           <div class="chip-line">
-                            <span class="label">${t.label}</span>
-                            <span class="stock-count">${soldOut ? '已售罄' : `剩 ${stock} 张`}</span>
+                            <span class="label">${label}</span>
+                            <span class="stock-count">${soldOut ? t('soldOut') : t('remaining', { n: stock })}</span>
                           </div>
-                          <div class="chip-note">${!interactive ? (disabledHint || '达标后可选') : qualified ? '达标即赠' : '未达标'}</div>
-                          <div class="chip-price">票面 ${t.price}</div>
+                          <div class="chip-note">${!interactive ? t(disabledHint || 'ticketNoteLocked') : qualified ? t('ticketNoteQualified') : t('ticketNoteUnqualified')}</div>
+                          <div class="chip-price">${t('ticketPriceLabel')} ${tk.price}</div>
                         </div>
                       `;
                     }).join('')}
@@ -1252,28 +1666,30 @@
       const ev = EVENTS.find(e => e.id === current.selectedEventId) || EVENTS[0];
       const ticket = [TICKET.VIP, TICKET.STANDARD].find(t => t.key === current.selectedTicket) || TICKET.STANDARD;
       const isEditMode = snapshot.stateCode === STATE.REGISTERED;
-      const countryOptions = COUNTRIES.map(c => `<option value="${c.code}" ${current.address.country === c.code ? 'selected' : ''}>${c.label}</option>`).join('');
+      const countryOptions = COUNTRIES.map(c => `<option value="${c.code}" ${current.address.country === c.code ? 'selected' : ''}>${t('country' + c.code)}</option>`).join('');
       const selectedCountry = COUNTRIES.find(c => c.code === current.address.country) || COUNTRIES[0];
       const dialOptions = COUNTRIES.map(c => `<option value="${c.dialCode}" ${current.address.dialCode === c.dialCode ? 'selected' : ''}>${c.dialCode}</option>`).join('');
+      const ticketLabel = ticket.key === 'vip' ? t('ticketVip') : t('ticketStandard');
       return `
         <div class="h5-header">
           <div class="back" onclick="goBackFromAddress()">‹</div>
-          <div class="title">${isEditMode ? '修改收件信息' : '填写寄票地址'}</div>
+          <div class="title">${isEditMode ? t('addressTitleEdit') : t('addressTitleAdd')}</div>
+          ${renderLangSelector()}
         </div>
         <div class="address-page">
           <div class="address-summary">
-            <div class="label">已选场次 / 档位</div>
-            <div class="value">${ev.artist} · ${ticket.label} · ${ticket.price}</div>
+            <div class="label">${t('addressSummaryLabel')}</div>
+            <div class="value">${ev.artist} · ${ticketLabel} · ${ticket.price}</div>
           </div>
 
           <div class="form-group">
-            <label>收件人姓名</label>
-            <input id="addrRecipient" class="form-input" type="text" placeholder="请输入姓名" value="${current.address.recipient}" oninput="clearFieldErrors()">
+            <label>${t('labelRecipient')}</label>
+            <input id="addrRecipient" class="form-input" type="text" placeholder="${t('placeholderRecipient')}" value="${current.address.recipient}" oninput="clearFieldErrors()">
             <div class="error-msg" id="addrRecipientError"></div>
           </div>
 
           <div class="form-group">
-            <label>国家 / 地区</label>
+            <label>${t('labelCountry')}</label>
             <select id="addrCountry" class="form-select" style="width:100%;" onchange="onCountryChange(this.value); clearFieldErrors()">
               ${countryOptions}
             </select>
@@ -1281,25 +1697,25 @@
           </div>
 
           <div class="form-group">
-            <label>详细地址</label>
-            <textarea id="addrDetail" class="form-textarea" placeholder="请输入详细地址" oninput="clearFieldErrors()">${current.address.detail}</textarea>
+            <label>${t('labelAddress')}</label>
+            <textarea id="addrDetail" class="form-textarea" placeholder="${t('placeholderAddress')}" oninput="clearFieldErrors()">${current.address.detail}</textarea>
             <div class="error-msg" id="addrDetailError"></div>
           </div>
 
           <div class="form-group">
-            <label>联系电话</label>
+            <label>${t('labelPhone')}</label>
             <div class="form-row">
               <select id="addrDialCode" class="form-select">
                 ${dialOptions}
               </select>
-              <input id="addrPhone" class="form-input" type="tel" placeholder="${selectedCountry.phonePlaceholder}" value="${current.address.phone}" oninput="clearFieldErrors()">
+              <input id="addrPhone" class="form-input" type="tel" placeholder="${t('phonePlaceholder' + selectedCountry.code)}" value="${current.address.phone}" oninput="clearFieldErrors()">
             </div>
             <div class="error-msg" id="addrPhoneError"></div>
           </div>
 
-          <button class="auto-fill-btn" onclick="autoFillAddress()">使用我的开户地址</button>
+          <button class="auto-fill-btn" onclick="autoFillAddress()">${t('autoFillBtn')}</button>
 
-          <div class="form-hint">实体票将于报名截止后 5 个工作日内寄出。收件人、手机号、地址均为必填项。</div>
+          <div class="form-hint">${t('addressHint')}</div>
         </div>
       `;
     }
@@ -1346,27 +1762,27 @@
 
     function autoFillAddress() {
       current.address = {
-        recipient: '张三',
+        recipient: t('sampleRecipient'),
         country: 'CN',
-        detail: '广东省深圳市南山区科技园南区 xx 栋 xx 室',
+        detail: t('sampleAddress'),
         dialCode: '+86',
-        phone: '13800138000'
+        phone: t('samplePhone')
       };
       render();
-      showToast('已使用开户地址');
+      showToast(t('toastAutoFill'));
     }
 
     function renderStateRegistered(snapshot) {
       const ev = EVENTS[0];
-      const ticketLabel = current.selectedTicket === 'vip' ? 'VIP 档' : '标准档';
+      const ticketLabel = current.selectedTicket === 'vip' ? t('ticketVip') : t('ticketStandard');
       const address = current.address || {};
-      const recipient = address.recipient || '张三';
-      const detail = address.detail || '香港九龙尖沙咀...';
+      const recipient = address.recipient || t('sampleRecipient');
+      const detail = address.detail || t('sampleAddress');
       const dialCode = address.dialCode || '+852';
-      const phone = address.phone || '9123 4567';
-      const deadlineDate = '8月5日';
+      const phone = address.phone || t('samplePhone');
+      const deadlineDate = currentLang === 'en' ? 'Aug 5' : '8月5日';
       return `
-        ${renderHero('盛夏焕新<br>港乐星夜', '')}
+        ${renderHero(t('heroTitle'), '')}
         <div class="content">
           <div class="state-card">
             <div class="event-top" style="margin-bottom:0;">
@@ -1376,74 +1792,74 @@
               </div>
             </div>
             <div class="success-box">
-              <div class="success-title">✅ 报名成功</div>
-              <div class="success-desc">您的门票已确认预留</div>
-              <div class="success-desc" style="margin-top:10px;">我们将于演出前 <strong>7-10 天</strong><br>将实体票寄送至您填写的地址</div>
+              <div class="success-title">${t('registeredSuccessTitle')}</div>
+              <div class="success-desc">${t('registeredSuccessDesc1')}</div>
+              <div class="success-desc" style="margin-top:10px;">${t('registeredSuccessDesc2')}</div>
             </div>
           </div>
 
-          <div class="section-divider">接下来会发生什么</div>
+          <div class="section-divider">${t('sectionNext')}</div>
           <div class="state-card" style="margin-top:0;">
             <div class="steps-list">
               <div class="step-item">
                 <div class="step-num">1</div>
                 <div class="step-content">
-                  <div class="step-title">门票制作</div>
-                  <div class="step-desc">报名成功后，我们将统一安排门票制作</div>
+                  <div class="step-title">${t('step1Title')}</div>
+                  <div class="step-desc">${t('step1Desc')}</div>
                 </div>
               </div>
               <div class="step-item">
                 <div class="step-num">2</div>
                 <div class="step-content">
-                  <div class="step-title">寄送门票</div>
-                  <div class="step-desc">制作完成后，将门票寄出<br>寄出时您将收到邮件通知</div>
+                  <div class="step-title">${t('step2Title')}</div>
+                  <div class="step-desc">${t('step2Desc')}</div>
                 </div>
               </div>
               <div class="step-item">
                 <div class="step-num">3</div>
                 <div class="step-content">
-                  <div class="step-title">签收门票</div>
-                  <div class="step-desc">请保持手机畅通，及时签收</div>
+                  <div class="step-title">${t('step3Title')}</div>
+                  <div class="step-desc">${t('step3Desc')}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="section-divider">收件信息</div>
+          <div class="section-divider">${t('sectionShipping')}</div>
           <div class="state-card" style="margin-top:0;">
             <div class="info-list">
               <div class="info-item">
                 <span class="info-icon">📦</span>
-                <span class="info-label">收件人：</span>
+                <span class="info-label">${t('infoRecipient')}</span>
                 <span class="info-value">${recipient}</span>
               </div>
               <div class="info-item">
                 <span class="info-icon">📍</span>
-                <span class="info-label">地址：</span>
+                <span class="info-label">${t('infoAddress')}</span>
                 <span class="info-value">${detail}</span>
               </div>
               <div class="info-item">
                 <span class="info-icon">📞</span>
-                <span class="info-label">电话：</span>
+                <span class="info-label">${t('infoPhone')}</span>
                 <span class="info-value">${dialCode} ${phone}</span>
               </div>
             </div>
             <div style="margin-top:14px; text-align:center;">
-              <button class="text-link-btn" onclick="editAddressFromRegistered()">[修改收件信息]</button>
-              <span style="font-size:13px; color:var(--muted);">（${deadlineDate}前可修改）</span>
+              <button class="text-link-btn" onclick="editAddressFromRegistered()">${t('editAddressBtn')}</button>
+              <span style="font-size:13px; color:var(--muted);">${t('editDeadline', { date: deadlineDate })}</span>
             </div>
           </div>
 
-          <div class="section-divider">到场须知</div>
+          <div class="section-divider">${t('sectionAttendance')}</div>
           <div class="state-card" style="margin-top:0;">
             <div class="info-list">
               <div class="info-item">
                 <span class="info-icon">🎫</span>
-                <span class="info-value">请携带实体门票入场</span>
+                <span class="info-value">${t('attendanceTicket')}</span>
               </div>
               <div class="info-item">
                 <span class="info-icon">🎁</span>
-                <span class="info-value">现场设有云锋有鱼专属应援礼包领取点</span>
+                <span class="info-value">${t('attendanceGift')}</span>
               </div>
             </div>
           </div>
@@ -1456,12 +1872,12 @@
         <div class="content" style="padding-top:48px;">
           <div class="state-card review-card">
             <div class="big-emoji">🎉</div>
-            <h2>感谢参与</h2>
-            <p>「盛夏焕新 · 港乐星夜」活动已结束，期待与您在更多活动中相遇。</p>
+            <h2>${t('endedTitle')}</h2>
+            <p>${t('endedDesc')}</p>
           </div>
           <div class="state-card">
-            <div class="state-title">满意度问卷</div>
-            <div class="state-desc">您的反馈将帮助我们提供更好的权益活动体验。</div>
+            <div class="state-title">${t('surveyTitle')}</div>
+            <div class="state-desc">${t('surveyDesc')}</div>
           </div>
         </div>
       `;
@@ -1473,17 +1889,17 @@
       let cfg;
 
       if (snapshot.stateCode === STATE.GUEST) {
-        cfg = { text: '登录 / 注册', note: '登录后查看您的达标状态', action: () => showToast('跳转登录页') };
+        cfg = { text: t('ctaLogin'), note: t('ctaNoteLogin'), action: () => showToast(t('toastLogin')) };
       } else if (snapshot.stateCode === STATE.LOGGED_IN_NO_ACCOUNT) {
-        cfg = { text: '前往开户', note: '完成开户后报名', action: () => showToast('跳转开户流程') };
+        cfg = { text: t('ctaOpenAccount'), note: t('ctaNoteOpenAccount'), action: () => showToast(t('toastOpenAccount')) };
       } else if (snapshot.stateCode === STATE.ACCOUNT_NOT_QUALIFIED && status.level === 'none') {
-        cfg = { text: '立即入金', note: '达标后即可选择场次', action: () => showToast('跳转入金页') };
+        cfg = { text: t('ctaDeposit'), note: t('ctaNoteDeposit'), action: () => showToast(t('toastDeposit')) };
       } else if (isRegisterState && current.view === 'events') {
-        cfg = { text: '填写寄票地址', note: '确认选择后填写收件信息', action: goToAddressPage };
+        cfg = { text: t('ctaAddress'), note: t('ctaNoteAddress'), action: goToAddressPage };
       } else if (isRegisterState && current.view === 'address') {
-        cfg = { text: '确认提交', note: '提交后将锁定名额', action: submitAddress, showCancel: false };
+        cfg = { text: t('ctaSubmit'), note: t('ctaNoteSubmit'), action: submitAddress, showCancel: false };
       } else if (snapshot.stateCode === STATE.REGISTERED && current.view === 'address') {
-        cfg = { text: '保存', note: '保存后将更新收件信息', action: submitAddress, showCancel: true };
+        cfg = { text: t('ctaSave'), note: t('ctaNoteSave'), action: submitAddress, showCancel: true };
       } else if (snapshot.stateCode === STATE.REGISTERED) {
         cfg = { text: '', note: '', action: null, showCancel: false };
       } else if (snapshot.stateCode === STATE.ENDED) {
@@ -1492,7 +1908,6 @@
 
       const ctaBar = document.getElementById('ctaBar');
 
-      // 已报名 / 已结束状态在事件列表页隐藏底部栏，地址编辑页需要显示
       if ((snapshot.stateCode === STATE.REGISTERED || snapshot.stateCode === STATE.ENDED) && current.view !== 'address') {
         ctaBar.classList.add('hidden');
         page.style.paddingBottom = '24px';
@@ -1508,22 +1923,22 @@
 
       if (cfg.showCancel) {
         cancelCta.classList.remove('hidden');
+        cancelCta.textContent = t('ctaCancel');
         cancelCta.onclick = cancelAddressEdit;
       } else {
         cancelCta.classList.add('hidden');
         cancelCta.onclick = null;
       }
 
-      // 已开户且已达标某档位但未选场次时，禁用填写地址
       if (isRegisterState && current.view === 'events' && status.level !== 'none' && (!current.selectedEventId || !current.selectedTicket)) {
         mainCta.disabled = true;
-        ctaNote.textContent = '请先选择场次与档位';
+        ctaNote.textContent = t('ctaNoteSelectFirst');
       }
     }
 
     function goToAddressPage() {
       if (!current.selectedEventId || !current.selectedTicket) {
-        showToast('请先选择场次与档位');
+        showToast(t('toastSelectFirst'));
         return;
       }
       current.view = 'address';
@@ -1557,19 +1972,19 @@
       const phone = document.getElementById('addrPhone').value.trim();
 
       if (!recipient) {
-        setFieldError('addrRecipient', '收件人姓名不能为空');
+        setFieldError('addrRecipient', t('errorRecipient'));
         isValid = false;
         if (!firstErrorId) firstErrorId = 'addrRecipient';
       }
 
       if (!detail) {
-        setFieldError('addrDetail', '详细地址不能为空');
+        setFieldError('addrDetail', t('errorAddress'));
         isValid = false;
         if (!firstErrorId) firstErrorId = 'addrDetail';
       }
 
       if (!phone) {
-        setFieldError('addrPhone', '联系电话不能为空');
+        setFieldError('addrPhone', t('errorPhone'));
         isValid = false;
         if (!firstErrorId) firstErrorId = 'addrPhone';
       }
@@ -1585,7 +2000,7 @@
     function submitAddress() {
       const isEditMode = current.stateCode === STATE.REGISTERED;
       if (!isEditMode && (!current.selectedEventId || !current.selectedTicket)) {
-        showToast('请选择场次与档位');
+        showToast(t('toastSelectFirst'));
         return;
       }
 
@@ -1599,11 +2014,11 @@
       current.view = 'events';
 
       if (isEditMode) {
-        showToast('保存成功！');
+        showToast(t('toastSaveSuccess'));
       } else {
         current.stateCode = STATE.REGISTERED;
         stateSelect.value = String(STATE.REGISTERED);
-        showToast('报名成功！');
+        showToast(t('toastRegisterSuccess'));
       }
       render();
     }
@@ -1640,6 +2055,7 @@
         current.tier = current.assetWan >= 100 ? TIER.VIP : TIER.STANDARD;
       }
 
+      document.title = t('pageTitle');
       const snapshot = buildStateSnapshot(current.stateCode, current.tier, current.assetWan);
 
       // 更新控制台读数
@@ -1704,6 +2120,7 @@
     });
 
     // 初始化
+    document.documentElement.lang = currentLang;
     render();
   </script>
 </body>
