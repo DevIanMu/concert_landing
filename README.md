@@ -12,7 +12,7 @@ https://DevIanMu.github.io/concert_landing/
 
 ## 文件说明
 
-- `index.html`：H5 落地页可交互原型（左上角含控制台，可切换状态、拖动资产 slider）
+- `index.html`：H5 落地页可交互原型（左上角含控制台，可切换状态、拖动资产 slider；右上角支持简中/繁中/英文切换）
 - `design/state-machine.html`：状态机可视化
 - `design/user-flow.html`：用户全链路流程图
 
