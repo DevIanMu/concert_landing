@@ -152,9 +152,7 @@
       color: var(--ink);
     }
 
-    .h5-header .lang-switcher {
-      position: absolute;
-      right: 16px;
+    .lang-switcher {
       height: 32px;
       padding: 0 12px;
       border: 1px solid var(--primary);
@@ -166,8 +164,29 @@
       cursor: pointer;
       outline: none;
     }
-    .h5-header .lang-switcher:focus {
+    .lang-switcher:focus {
       box-shadow: 0 0 0 2px rgba(0,82,255,0.2);
+    }
+    .h5-header .lang-switcher {
+      position: absolute;
+      right: 16px;
+    }
+    .hero .lang-switcher {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 2;
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.35);
+      color: var(--on-dark);
+      backdrop-filter: blur(4px);
+    }
+    .hero .lang-switcher:focus {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+    }
+    .hero .lang-switcher option {
+      background: var(--canvas);
+      color: var(--ink);
     }
 
     /* KV 头图 */
@@ -1450,7 +1469,6 @@
         <div class="h5-header">
           <div class="back">‹</div>
           <div class="title">${t('headerTitle')}</div>
-          ${renderLangSelector()}
         </div>
       `;
     }
@@ -1458,6 +1476,7 @@
     function renderHero(title, tagText) {
       return `
         <section class="hero">
+          ${renderLangSelector()}
           <div class="hero-brand">
             <div class="logo">云</div>
             <span>${t('brandName')}</span>
