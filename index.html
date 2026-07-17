@@ -1,2146 +1,534 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prototype - 演唱会活动落地页状态机 Demo</title>
-  <!--
-    PROTOTYPE — delete when done
-    Question: 演唱会 H5 落地页在不同用户状态下的信息架构与主行动点是否合理？
-    Parameters:
-      - 5 个用户状态：0访客 / 1已登录未开户 / 2已开户 / 4已报名 / 5已结束（状态 2 中通过资产滑块控制是否达标）
-      - 用户档位由账户总资产自动判定：≥100 万 HKD 为 VIP 档，≥10 万 HKD 为标准档
-      - 设计规范：根目录 design.md（Coinbase 风格：#0052ff 主色、pill 按钮、24px 卡片圆角、96px 节奏）
-      - 参考视觉：其他活动落地页截图（移动端 H5、蓝色 KV、规则折叠、底部单一 CTA）
-    How to use: 用左上角悬浮控制条切换状态并拖动资产，观察页面主行动点和档位信息变化。
-  -->
-  <style>
-    :root {
-      /* Coinbase tokens */
-      --primary: #0052ff;
-      --primary-active: #003ecc;
-      --primary-disabled: #a8b8cc;
-      --canvas: #ffffff;
-      --surface-soft: #f7f7f7;
-      --surface-strong: #eef0f3;
-      --surface-dark: #0a0b0d;
-      --surface-dark-elevated: #16181c;
-      --hairline: #dee1e6;
-      --hairline-soft: #eef0f3;
-      --ink: #0a0b0d;
-      --body: #5b616e;
-      --muted: #7c828a;
-      --muted-soft: #a8acb3;
-      --on-primary: #ffffff;
-      --on-dark: #ffffff;
-      --on-dark-soft: #a8acb3;
-      --semantic-up: #05b169;
-      --semantic-down: #cf202f;
-      --accent-gold: #c9a96e;
-      --radius-pill: 100px;
-      --radius-xl: 24px;
-      --radius-lg: 16px;
-      --radius-md: 12px;
-      --radius-sm: 8px;
-      --section: 96px;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    html, body {
-      height: 100%;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--surface-soft);
-      color: var(--ink);
-    }
-
-    /* ========== 原型控制条 ========== */
-    .prototype-controls {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      z-index: 1000;
-      background: var(--surface-dark-elevated);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: var(--radius-lg);
-      padding: 14px 16px;
-      color: var(--on-dark);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-      max-width: 320px;
-    }
-    .prototype-controls h4 {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: var(--accent-gold);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .prototype-controls .control-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-size: 12px;
-    }
-    .prototype-controls label { color: var(--on-dark-soft); min-width: 52px; }
-    .prototype-controls select,
-    .prototype-controls input[type="range"] {
-      flex: 1;
-      background: var(--surface-dark);
-      color: var(--on-dark);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: var(--radius-sm);
-      padding: 4px 6px;
-      font-size: 12px;
-    }
-    .prototype-controls .state-readout {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--on-dark-soft);
-    }
-    .prototype-controls .state-readout strong { color: var(--on-dark); }
-
-    /* ========== 手机外框 ========== */
-    .phone-shell {
-      max-width: 414px;
-      margin: 24px auto 60px;
-      background: var(--canvas);
-      border-radius: 40px;
-      box-shadow: 0 24px 60px rgba(0,0,0,0.14);
-      overflow: hidden;
-      position: relative;
-      min-height: calc(100vh - 48px);
-    }
-
-    /* ========== H5 页面 ========== */
-    .h5-page {
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-      padding-bottom: 100px; /* CTA 固定高度占位 */
-    }
-
-    /* 顶部导航 */
-    .h5-header {
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      background: var(--canvas);
-      border-bottom: 1px solid var(--hairline-soft);
-    }
-    .h5-header .back {
-      position: absolute;
-      left: 16px;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--ink);
-      font-size: 20px;
-    }
-    .h5-header .title {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--ink);
-    }
-
-    .lang-switcher {
-      height: 32px;
-      padding: 0 12px;
-      border: 1px solid var(--primary);
-      border-radius: var(--radius-pill);
-      background: var(--canvas);
-      color: var(--primary);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      outline: none;
-    }
-    .lang-switcher:focus {
-      box-shadow: 0 0 0 2px rgba(0,82,255,0.2);
-    }
-    .h5-header .lang-switcher {
-      position: absolute;
-      right: 16px;
-    }
-    .hero .lang-switcher {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      z-index: 2;
-      background: rgba(255,255,255,0.14);
-      border-color: rgba(255,255,255,0.35);
-      color: var(--on-dark);
-      backdrop-filter: blur(4px);
-    }
-    .hero .lang-switcher:focus {
-      box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
-    }
-    .hero .lang-switcher option {
-      background: var(--canvas);
-      color: var(--ink);
-    }
-
-    /* KV 头图 */
-    .hero {
-      position: relative;
-      background: linear-gradient(135deg, #0a1628 0%, #1d4ed8 60%, #3b82f6 100%);
-      color: var(--on-dark);
-      padding: 32px 24px 40px;
-      overflow: hidden;
-    }
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 90% 20%, rgba(255,255,255,0.16) 0%, transparent 40%);
-      pointer-events: none;
-    }
-    .hero-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      position: relative;
-      z-index: 1;
-    }
-    .hero-brand .logo {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--on-dark);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--primary);
-      font-weight: 700;
-      font-size: 14px;
-    }
-    .hero-content {
-      position: relative;
-      z-index: 1;
-      max-width: 68%;
-    }
-    .hero h1 {
-      font-size: 32px;
-      font-weight: 400;
-      line-height: 1.12;
-      letter-spacing: -0.8px;
-      margin-bottom: 14px;
-    }
-    .hero .tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255,255,255,0.16);
-      border: 1px solid rgba(255,255,255,0.24);
-      border-radius: var(--radius-pill);
-      padding: 7px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      backdrop-filter: blur(4px);
-    }
-    .hero-illustration {
-      position: absolute;
-      right: -20px;
-      bottom: -24px;
-      width: 180px;
-      height: 180px;
-      z-index: 1;
-      opacity: 0.95;
-    }
-    .hero-illustration svg { width: 100%; height: 100%; }
-
-    /* 内容区 */
-    .content { padding: 24px 20px; }
-
-    /* 状态徽章 */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: var(--radius-pill);
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-    .status-badge.qualified { background: rgba(5,177,105,0.1); color: var(--semantic-up); }
-    .status-badge.unqualified { background: rgba(207,32,47,0.08); color: var(--semantic-down); }
-    .status-badge.neutral { background: var(--surface-strong); color: var(--body); }
-
-    /* 状态提示卡片 */
-    .gap-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .gap-row .gap { margin: 0; }
-    .deposit-mini-btn {
-      height: 36px;
-      padding: 0 16px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--primary);
-      color: var(--on-primary);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .state-card {
-      background: var(--canvas);
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-xl);
-      padding: 22px;
-      margin-bottom: 20px;
-    }
-    .state-card .state-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: var(--ink);
-    }
-    .state-card .state-desc {
-      font-size: 14px;
-      line-height: 1.55;
-      color: var(--body);
-    }
-    .state-card .asset-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 16px 0 4px;
-      padding: 14px 16px;
-      background: var(--surface-soft);
-      border-radius: var(--radius-md);
-    }
-    .state-card .asset-row .label { font-size: 13px; color: var(--muted); }
-    .state-card .asset-row .value { font-size: 22px; font-weight: 500; letter-spacing: -0.5px; }
-    .state-card .gap {
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--body);
-    }
-    .state-card .gap strong { color: var(--semantic-down); }
-
-    /* 权益卡片区 */
-    .benefits { margin-bottom: 24px; }
-    .benefits-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 14px;
-      color: var(--ink);
-    }
-    .benefit-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .benefit-item {
-      background: var(--surface-soft);
-      border: 1px solid var(--hairline-soft);
-      border-radius: var(--radius-lg);
-      padding: 18px 14px;
-      text-align: center;
-    }
-    .benefit-item .icon {
-      width: 48px;
-      height: 48px;
-      margin: 0 auto 10px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-    }
-    .benefit-item h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--ink);
-      margin-bottom: 4px;
-    }
-    .benefit-item p {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    /* 场次列表 */
-    .events-section { margin-bottom: 24px; }
-    .events-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-    .events-header h3 { font-size: 18px; font-weight: 600; }
-    .events-header .note {
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .event-card {
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      margin-bottom: 12px;
-      background: var(--canvas);
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .event-card.disabled {
-      opacity: 0.55;
-      background: var(--surface-soft);
-    }
-    .event-card.selected {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 1px var(--primary);
-    }
-    .event-card .event-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 10px;
-    }
-    .event-card .artist { font-size: 16px; font-weight: 600; }
-    .event-card .date { font-size: 13px; color: var(--muted); margin-top: 2px; }
-    .event-card .stock {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
-    }
-    .event-card .stock.ok { background: rgba(5,177,105,0.1); color: var(--semantic-up); }
-    .event-card .stock.low { background: rgba(244,176,0,0.12); color: #b45309; }
-    .event-card .stock.out { background: var(--surface-strong); color: var(--muted); }
-    .event-card .ticket-options {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .ticket-chip {
-      flex: 1;
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-md);
-      padding: 10px;
-      text-align: center;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    .ticket-chip:hover:not(.disabled) { border-color: var(--primary); }
-    .ticket-chip.disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      background: var(--surface-soft);
-    }
-    .ticket-chip {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-    }
-    .ticket-chip .chip-line {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-    }
-    .ticket-chip .chip-line .label { font-weight: 600; color: var(--ink); }
-    .ticket-chip .chip-line .stock-count { font-size: 12px; color: var(--muted); }
-    .ticket-chip .chip-note {
-      font-size: 12px;
-      color: var(--semantic-up);
-      font-weight: 600;
-    }
-    .ticket-chip.disabled .chip-note { color: var(--muted-soft); }
-    .ticket-chip.selected {
-      border-color: var(--primary);
-      background: rgba(0,82,255,0.08);
-      position: relative;
-    }
-    .ticket-chip.selected::after {
-      content: '✓';
-      position: absolute;
-      top: 4px;
-      right: 6px;
-      width: 16px;
-      height: 16px;
-      background: var(--primary);
-      color: #fff;
-      border-radius: 50%;
-      font-size: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .ticket-chip .chip-price {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* 报名表单 */
-    .form-group { margin-bottom: 14px; }
-    .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: var(--ink);
-    }
-    .form-group input {
-      width: 100%;
-      height: 48px;
-      padding: 0 16px;
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-md);
-      font-size: 15px;
-      color: var(--ink);
-      background: var(--canvas);
-    }
-    .form-group input:focus {
-      outline: none;
-      border: 2px solid var(--primary);
-      padding-left: 15px;
-    }
-    .form-hint {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    /* 地址填写页面 */
-    .address-page { padding: 0 20px 24px; }
-    .address-page .page-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .address-page .page-header .back {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: var(--ink);
-      cursor: pointer;
-    }
-    .address-page .page-header h2 {
-      font-size: 20px;
-      font-weight: 600;
-    }
-    .address-summary {
-      background: var(--surface-soft);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .address-summary .label {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    .address-summary .value {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--ink);
-    }
-    .form-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-    .form-row .form-select {
-      height: 48px;
-      padding: 0 12px;
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-md);
-      font-size: 15px;
-      color: var(--ink);
-      background: var(--canvas);
-      flex-shrink: 0;
-    }
-    .form-row .form-select:focus {
-      outline: none;
-      border: 2px solid var(--primary);
-    }
-    .form-row .form-input {
-      flex: 1;
-      height: 48px;
-      padding: 0 16px;
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-md);
-      font-size: 15px;
-      color: var(--ink);
-      background: var(--canvas);
-    }
-    .form-row .form-input:focus {
-      outline: none;
-      border: 2px solid var(--primary);
-      padding-left: 15px;
-    }
-    .form-textarea {
-      width: 100%;
-      min-height: 80px;
-      padding: 12px 16px;
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-md);
-      font-size: 15px;
-      color: var(--ink);
-      background: var(--canvas);
-      resize: vertical;
-    }
-    .form-textarea:focus {
-      outline: none;
-      border: 2px solid var(--primary);
-      padding: 11px 15px;
-    }
-    .auto-fill-btn {
-      width: 100%;
-      height: 44px;
-      border: 1px dashed var(--primary);
-      border-radius: var(--radius-md);
-      background: rgba(0,82,255,0.06);
-      color: var(--primary);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-
-    /* 表单校验错误态 */
-    .form-input.error,
-    .form-textarea.error,
-    .form-select.error {
-      border-color: var(--semantic-down);
-    }
-    .form-input.error:focus,
-    .form-textarea.error:focus,
-    .form-select.error:focus {
-      border-color: var(--semantic-down);
-    }
-    .error-msg {
-      font-size: 12px;
-      color: var(--semantic-down);
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-
-    /* 活动规则 */
-    .rules-section { margin-bottom: 24px; }
-    .rules-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--surface-strong);
-      border-radius: var(--radius-pill);
-      padding: 12px 18px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--ink);
-    }
-    .rules-body {
-      margin-top: 12px;
-      padding: 16px 18px;
-      background: var(--surface-soft);
-      border-radius: var(--radius-lg);
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--body);
-      display: block;
-    }
-    .rules-body ol { padding-left: 18px; }
-    .rules-body li { margin-bottom: 8px; }
-
-    /* 物流时间线 */
-    .timeline {
-      position: relative;
-      padding-left: 22px;
-      margin-top: 14px;
-    }
-    .timeline::before {
-      content: "";
-      position: absolute;
-      left: 6px;
-      top: 6px;
-      bottom: 6px;
-      width: 2px;
-      background: var(--hairline);
-    }
-    .timeline-item {
-      position: relative;
-      padding-bottom: 16px;
-    }
-    .timeline-item::before {
-      content: "";
-      position: absolute;
-      left: -20px;
-      top: 4px;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--hairline);
-      border: 2px solid var(--canvas);
-    }
-    .timeline-item.active::before { background: var(--primary); }
-    .timeline-item.done::before { background: var(--semantic-up); }
-
-    /* 已报名状态：步骤说明 */
-    .steps-list { margin-top: 14px; }
-    .step-item {
-      display: flex;
-      gap: 12px;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--hairline-soft);
-    }
-    .step-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .step-item:first-child { padding-top: 0; }
-    .step-num {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      background: var(--primary);
-      color: var(--on-primary);
-      font-size: 13px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .step-content .step-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--ink);
-      margin-bottom: 4px;
-    }
-    .step-content .step-desc {
-      font-size: 13px;
-      line-height: 1.5;
-      color: var(--body);
-    }
-
-    /* 已报名状态：成功提示框 */
-    .success-box {
-      background: rgba(5,177,105,0.06);
-      border: 1px solid rgba(5,177,105,0.2);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      margin-top: 16px;
-    }
-    .success-box .success-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--semantic-up);
-      margin-bottom: 6px;
-    }
-    .success-box .success-desc {
-      font-size: 14px;
-      line-height: 1.55;
-      color: var(--body);
-    }
-    .success-box .success-desc strong { color: var(--ink); }
-
-    /* 已报名状态：信息列表 */
-    .info-list { margin-top: 12px; }
-    .info-list .info-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--body);
-      margin-bottom: 8px;
-    }
-    .info-list .info-item:last-child { margin-bottom: 0; }
-    .info-list .info-item .info-icon {
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-    .info-list .info-item .info-label { color: var(--muted); margin-right: 4px; white-space: nowrap; }
-    .info-list .info-item .info-value { color: var(--ink); font-weight: 500; }
-    .text-link-btn {
-      background: transparent;
-      border: none;
-      color: var(--primary);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    /* 分段标题 */
-    .section-divider {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 24px 0 14px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .section-divider::before,
-    .section-divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--hairline-soft);
-    }
-
-    .timeline-item .time-label {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 2px;
-    }
-    .timeline-item .event-label {
-      font-size: 14px;
-      color: var(--ink);
-    }
-
-    /* 固定底部 CTA */
-    .cta-bar {
-      position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100%;
-      max-width: 414px;
-      background: var(--canvas);
-      border-top: 1px solid var(--hairline-soft);
-      padding: 12px 20px 24px;
-      z-index: 50;
-    }
-    .cta-button {
-      width: 100%;
-      height: 52px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--primary);
-      color: var(--on-primary);
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .cta-button:active { background: var(--primary-active); }
-    .cta-button:disabled {
-      background: var(--primary-disabled);
-      cursor: not-allowed;
-    }
-    .cta-button.secondary {
-      background: var(--surface-strong);
-      color: var(--ink);
-    }
-    .cta-row {
-      display: flex;
-      gap: 12px;
-    }
-    .cta-row .cta-button { flex: 1; }
-
-    /* 辅助文字 */
-    .muted-note {
-      font-size: 12px;
-      color: var(--muted);
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    /* 问卷/回顾 */
-    .review-card {
-      text-align: center;
-      padding: 40px 24px;
-    }
-    .review-card .big-emoji { font-size: 56px; margin-bottom: 16px; }
-    .review-card h2 {
-      font-size: 24px;
-      font-weight: 400;
-      letter-spacing: -0.5px;
-      margin-bottom: 10px;
-    }
-    .review-card p { color: var(--body); font-size: 14px; line-height: 1.6; }
-
-    /* 隐藏类 */
-    .hidden { display: none !important; }
-
-    /* 全局提示 */
-    .toast {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(10,11,13,0.92);
-      color: #fff;
-      padding: 14px 22px;
-      border-radius: var(--radius-lg);
-      font-size: 14px;
-      z-index: 2000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
-    }
-    .toast.show { opacity: 1; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>盛夏焕新 · 港乐星夜</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --ink:#1a1d26; --ink2:#6b7280; --ink3:#9ca3af;
+  --brand:#1b4fd8; --brand2:#3b6ef0; --gold:#c9a35c; --line:#e8eaef;
+  --ok:#0d9f6e; --warn:#d9473b; --vip-grad:linear-gradient(135deg,#2b2b3a,#4a3f2a);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);font-size:15px;line-height:1.55}
+.phone{max-width:420px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;padding-bottom:88px}
+/* ===== demo 专用栏（非产品设计） ===== */
+.demo-bar{position:sticky;top:0;z-index:99;background:#fff8e1;border-bottom:1px dashed #d8b93a;padding:8px 12px;font-size:12px;color:#7a6410}
+.demo-bar select{margin:4px 0 2px;width:100%;padding:5px 6px;font-size:13px;border:1px solid #d8b93a;border-radius:6px;background:#fff}
+/* ===== 导航 ===== */
+.nav{height:56px;display:flex;align-items:center;justify-content:center;position:relative;background:var(--card);border-bottom:1px solid var(--line);font-weight:600;font-size:16px}
+.nav-back{position:absolute;left:8px;top:50%;transform:translateY(-50%);border:none;background:none;font-size:20px;color:var(--ink);cursor:pointer;padding:4px 10px}
+/* ===== KV ===== */
+.kv{background:linear-gradient(160deg,#12275e 0%,#1b4fd8 60%,#3b6ef0 100%);color:#fff;padding:34px 20px 30px}
+.kv-logo{font-size:11px;letter-spacing:2px;opacity:.75;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.kv-logo .cross{opacity:.6}
+.kv h1{font-size:23px;letter-spacing:1px}
+.kv p{margin-top:6px;font-size:13px;opacity:.85}
+/* ===== 通用卡片与区块 ===== */
+.section{padding:14px 14px 0}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.card + .card{margin-top:12px}
+.sec-title{font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.muted{color:var(--ink2);font-size:13px}
+/* ===== 状态提示卡 ===== */
+.status-card{border-radius:14px;padding:16px;background:linear-gradient(135deg,#eef3ff,#f7f9ff);border:1px solid #dfe7fb}
+.status-card.warn{background:linear-gradient(135deg,#fdf3f2,#fef9f8);border-color:#f5d9d5}
+.status-card h3{font-size:15px;margin-bottom:6px}
+/* ===== 场次卡 ===== */
+.event-head{display:flex;justify-content:space-between;align-items:flex-start}
+.event-artist{font-size:18px;font-weight:700}
+.event-meta{margin-top:4px;font-size:13px;color:var(--ink2)}
+.deadline-tag{flex-shrink:0;font-size:11px;color:var(--brand);background:#eef3ff;border-radius:8px;padding:4px 8px;text-align:center;line-height:1.4}
+/* ===== 票档卡 ===== */
+.tier{margin-top:12px;border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;position:relative;transition:border-color .15s}
+.tier.enabled{cursor:pointer;border-color:var(--brand)}
+.tier.enabled:active{background:#f6f8ff}
+.tier.disabled{opacity:.62}
+.tier.vip{background:var(--vip-grad);color:#f3e9d2;border-color:#6b5a36}
+.tier.vip.enabled{border-color:var(--gold)}
+.tier.vip .tier-price{color:var(--gold)}
+.tier-top{display:flex;justify-content:space-between;align-items:center}
+.tier-name{font-weight:700;font-size:15px}
+.tier-price{font-weight:700;color:var(--brand);font-size:15px}
+.tier-sub{margin-top:3px;font-size:12px;color:var(--ink2)}
+.tier.vip .tier-sub{color:#cfc4a8}
+.tier-lock{margin-top:8px;font-size:12px;color:var(--warn);display:flex;align-items:center;gap:4px}
+.tier.vip .tier-lock{color:#f0b9b2}
+.tier-stock{font-size:11px;color:var(--ink3)}
+.tier.vip .tier-stock{color:#b3a888}
+.tier-cta{margin-top:8px;font-size:12px;font-weight:600;color:var(--brand)}
+.tier.vip .tier-cta{color:var(--gold)}
+/* ===== 进度卡 ===== */
+.pg-tier{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+.pg-tier.unlocked{border-color:var(--ok);background:#f2fbf7;cursor:pointer}
+.pg-tier.locked{opacity:.75}
+.pg-head{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+.pg-badge{font-size:11px;font-weight:600;color:var(--ok);background:#e2f6ee;border-radius:8px;padding:2px 8px}
+.pg-badge.grey{color:var(--ink3);background:#eef0f3}
+.pg-row{display:flex;justify-content:space-between;font-size:13px;margin-top:8px;color:var(--ink2)}
+.pg-row .ok{color:var(--ok);font-weight:600}
+.pg-row .gap{color:var(--brand);font-weight:600}
+.pg-hint{margin-top:8px;font-size:12px;color:var(--brand)}
+.bar{height:6px;border-radius:3px;background:#edf0f4;margin-top:6px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+/* ===== 规则面板 ===== */
+.rules ol{padding-left:18px;font-size:13px;color:var(--ink2)}
+.rules li{margin-bottom:8px}
+.rules b{color:var(--ink)}
+/* ===== 已报名页 ===== */
+.success-hero{text-align:center;padding:22px 10px 14px}
+.success-hero .check{width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.step{display:flex;gap:12px;margin-top:14px}
+.step-num{width:24px;height:24px;flex-shrink:0;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;font-weight:600}
+.step-body b{font-size:14px}
+.step-body p{font-size:13px;color:var(--ink2);margin-top:2px}
+.info-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.info-row:last-child{border-bottom:none}
+.info-row .k{color:var(--ink2)}
+.info-row .v{text-align:right;max-width:65%}
+.link{color:var(--brand);font-size:13px;cursor:pointer;font-weight:600}
+.notice{margin-top:10px;font-size:12px;color:var(--warn);background:#fdf3f2;border-radius:10px;padding:10px 12px;line-height:1.6}
+/* ===== 底部 CTA ===== */
+.cta-bar{position:absolute;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1px solid var(--line)}
+.cta{width:100%;height:48px;border:none;border-radius:24px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+.cta:active{opacity:.9}
+.cta.secondary{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+/* ===== 地址页 ===== */
+.field{margin-top:14px}
+.field label{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;background:#fff;font-family:inherit}
+.field textarea{min-height:76px;resize:vertical}
+.field.err input,.field.err select,.field.err textarea{border-color:var(--warn)}
+.field .msg{display:none;font-size:12px;color:var(--warn);margin-top:4px}
+.field.err .msg{display:block}
+.phone-row{display:flex;gap:8px}
+.phone-row select{width:108px;flex-shrink:0}
+.summary-strip{background:#eef3ff;border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink2)}
+.summary-strip b{color:var(--ink)}
+.addr-actions{margin-top:22px}
+.addr-actions .hint{text-align:center;font-size:12px;color:var(--ink3);margin-top:8px}
+.addr-actions .row{display:flex;gap:10px}
+/* ===== Toast ===== */
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(20,24,38,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:20px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;max-width:80%;text-align:center}
+.toast.show{opacity:1}
+</style>
 </head>
 <body>
-
-  <!-- 原型控制条 -->
-  <div class="prototype-controls">
-    <h4>🛠️ 原型控制台</h4>
-    <div class="control-row">
-      <label>状态</label>
-      <select id="stateSelect">
-        <option value="0">0 访客态（未登录）</option>
-        <option value="1">1 已登录未开户</option>
-        <option value="2">2 已开户</option>
-        <option value="4">4 已报名（履约中）</option>
-        <option value="5">5 已到场 / 已结束</option>
-      </select>
-    </div>
-    <div class="control-row">
-      <label>资产</label>
-      <input id="assetRange" type="range" min="0" max="150" value="5" step="1">
-      <span style="margin-left:8px; color:var(--on-dark-soft);"><strong id="assetValue">HKD 50,000.00</strong></span>
-    </div>
-    <div class="state-readout" id="stateReadout"></div>
+<div class="phone" id="phone">
+  <div class="demo-bar" id="demo-bar"></div>
+  <div id="page-main">
+    <nav class="nav"><span id="nav-title">活动中心</span></nav>
+    <div id="app"></div>
   </div>
+  <div id="page-address" hidden>
+    <nav class="nav"><button class="nav-back" id="addr-back">‹</button><span id="addr-title"></span></nav>
+    <div id="addr-body" style="padding:14px"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+/* ============================================================
+ * Demo：云锋有鱼「盛夏焕新 · 港乐星夜」限时优享计划 H5（v2）
+ * 依据 docs/superpowers/specs/2026-07-17--design-v2.md 实现
+ * 仅简体中文；数据为前端 mock，模拟 status + qualification 接口
+ * ============================================================ */
 
-  <!-- 手机外框 -->
-  <div class="phone-shell">
-    <div class="h5-page" id="h5Page">
-      <!-- JS 动态注入 -->
+// == 基础工具 ==
+const $ = (s, el) => (el || document).querySelector(s);
+const fmt = n => Number(n).toLocaleString('en-US');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+const demoToast = () => toast('演示环境，未实现真实功能');
+
+// == Mock 数据 ==
+const EVENT = {
+  artist: '郑允浩（U-Know Yunho）',
+  date: '2026-09-26',
+  venue: 'Dreamland',
+  deadline: '2026-09-05'
+};
+const STOCK = { vip_total: 10, vip_used: 3, standard_total: 15, standard_used: 6 };
+const TIERS = {
+  vip:      { name: 'VIP 档', price: '票面 HKD 1,888',    cond: '单日净入资 ≥ 100 万 HKD · 连续 30 天总资产 ≥ 100 万' },
+  standard: { name: '标准档', price: '票面 HKD 888–999',  cond: '单日净入资 ≥ 10 万 HKD · 连续 30 天总资产 ≥ 10 万' }
+};
+// GET /api/concert/status mock：8 个演示场景
+const SCENARIOS = [
+  { id: '0',          label: '状态 0 · 访客（未登录）' },
+  { id: '1',          label: '状态 1 · 已登录未开户' },
+  { id: '2-old',      label: '状态 2 · 老客（8/1 前开户）' },
+  { id: '2-progress', label: '状态 2 · 新客未达标' },
+  { id: '2-standard', label: '状态 2 · 已达标标准档' },
+  { id: '2-vip',      label: '状态 2 · 已达标 VIP 档' },
+  { id: '4',          label: '状态 4 · 已报名' },
+  { id: '5',          label: '状态 5 · 已结束' }
+];
+const QUAL = {
+  '2-old':      { is_new_customer: false },
+  '2-progress': {
+    is_new_customer: true,
+    standard: { net_inflow_qualified: false, net_inflow_gap: 42000,  holding_days: 9, qualified: false },
+    vip:      { net_inflow_qualified: false, net_inflow_gap: 942000, holding_days: 0, qualified: false }
+  },
+  '2-standard': {
+    is_new_customer: true,
+    standard: { net_inflow_qualified: true,  net_inflow_gap: 0,      holding_days: 30, qualified: true },
+    vip:      { net_inflow_qualified: false, net_inflow_gap: 500000, holding_days: 12, qualified: false }
+  },
+  '2-vip': {
+    is_new_customer: true,
+    standard: { net_inflow_qualified: true,  net_inflow_gap: 0,      holding_days: 30, qualified: true },
+    vip:      { net_inflow_qualified: true,  net_inflow_gap: 0,      holding_days: 30, qualified: true }
+  }
+};
+const DEFAULT_REG = {
+  ticket_type: 'standard', name: '张三', region: '中国香港',
+  address: '九龙尖沙咀弥敦道 100 号 8 楼 801 室', phone_code: '+852', phone: '9123 4567'
+};
+
+// == 运行时状态 ==
+let scene = '0';                 // 当前演示场景
+let registration = null;         // 报名成功后写入 {ticket_type, name, region, address, phone_code, phone}
+let selectedTier = null;         // 地址页所选手档 'vip' | 'standard'
+let addressMode = 'register';    // 'register' | 'edit'
+const currentReg = () => registration || DEFAULT_REG;
+
+// == Demo 专用栏（非产品设计） ==
+function renderDemoBar(){
+  $('#demo-bar').innerHTML =
+    'Demo 场景切换（仅演示用途 · 非产品设计）' +
+    '<select id="demo-scene">' +
+    SCENARIOS.map(s => `<option value="${s.id}"${s.id === scene ? ' selected' : ''}>${s.label}</option>`).join('') +
+    '</select>';
+  $('#demo-scene').addEventListener('change', e => {
+    scene = e.target.value;
+    closeAddress();
+    renderMain();
+  });
+}
+
+// == 通用组件 ==
+function kv(){
+  return `<div class="kv">
+    <div class="kv-logo">云锋 <span class="cross">×</span> OFFGRID</div>
+    <h1>盛夏焕新 · 港乐星夜</h1>
+    <p>${EVENT.artist} · ${EVENT.date} · ${EVENT.venue}</p>
+    <p>新客专享 · 双档门票权益 · 报名截止 ${EVENT.deadline}</p>
+  </div>`;
+}
+function rulesPanel(){
+  return `<div class="section"><div class="card rules">
+    <div class="sec-title">活动规则</div>
+    <ol>
+      <li>活动仅限 2026 年 8 月 1 日起完成开户的客户参与，每人限报名 1 张，名额先到先得，报完即止。</li>
+      <li>标准档：活动期间单日净入资 ≥ 10 万 HKD（含现金及股票转仓），且连续 30 个自然日账户总资产 ≥ 10 万 HKD。</li>
+      <li>VIP 档：活动期间单日净入资 ≥ 100 万 HKD（含现金及股票转仓），且连续 30 个自然日账户总资产 ≥ 100 万 HKD；VIP 档客户可降级选择标准档。</li>
+      <li>报名成功后，工作人员将于寄票前核实您自开户日起的活动期间交易手数（标准档 ≥ 5 手，VIP 档 ≥ 10 手，全市场交易合计）。核实通过后，门票将于演出前 7-10 天寄出，寄出时您将收到邮件通知。</li>
+      <li><b>若交易手数未满足上述要求，将不予寄票</b>，核实结果将以邮件通知。</li>
+      <li>收件信息可于报名截止日（2026-09-05）前修改。</li>
+    </ol>
+  </div></div>`;
+}
+function stockLine(tier){
+  const total = STOCK[tier + '_total'], used = STOCK[tier + '_used'];
+  return `剩余 ${total - used} / ${total}`;
+}
+// 票档卡：enabled=true 时可点击报名；否则展示 lockText
+function tierCard(tier, enabled, lockText){
+  const t = TIERS[tier];
+  return `<div class="tier ${tier} ${enabled ? 'enabled' : 'disabled'}" data-tier="${tier}" data-enabled="${enabled ? 1 : 0}" data-lock="${esc(lockText || '')}">
+    <div class="tier-top">
+      <span class="tier-name">${t.name}</span>
+      <span class="tier-price">${t.price}</span>
     </div>
-
-    <!-- 固定底部 CTA（JS 控制文案与可用性） -->
-    <div class="cta-bar" id="ctaBar">
-      <div class="cta-row" id="ctaRow">
-        <button class="cta-button secondary hidden" id="cancelCta"></button>
-        <button class="cta-button" id="mainCta"></button>
+    <div class="tier-sub">${t.cond}</div>
+    <div class="tier-stock">${stockLine(tier)} · 先到先得</div>
+    ${enabled ? '<div class="tier-cta">点击报名 ›</div>' : (lockText ? `<div class="tier-lock">🔒 ${lockText}</div>` : '')}
+  </div>`;
+}
+function eventCard(tierHtml){
+  return `<div class="section"><div class="card">
+    <div class="event-head">
+      <div>
+        <div class="event-artist">${EVENT.artist}</div>
+        <div class="event-meta">${EVENT.date} · ${EVENT.venue}</div>
       </div>
-      <div class="muted-note" id="ctaNote"></div>
+      <div class="deadline-tag">报名截止<br>${EVENT.deadline}</div>
     </div>
-  </div>
+    ${tierHtml}
+  </div></div>`;
+}
+function ctaBar(label, id){
+  return `<div class="cta-bar"><button class="cta" id="${id}">${label}</button></div>`;
+}
+// 双档资格进度卡（状态 2 核心 UI）
+function qualCards(qual){
+  const one = (tier, q) => {
+    const threshold = tier === 'vip' ? '100 万' : '10 万';
+    const pct = Math.min(100, Math.round(q.holding_days / 30 * 100));
+    const inflow = q.net_inflow_qualified
+      ? '<span class="ok">✅ 已达标</span>'
+      : `<span class="gap">还差 HKD ${fmt(q.net_inflow_gap)}</span>`;
+    const badge = q.qualified
+      ? '<span class="pg-badge">可报名</span>'
+      : '<span class="pg-badge grey">未达标</span>';
+    const hint = (tier === 'vip' && !q.qualified && qual.standard.qualified)
+      ? '<div class="pg-hint">继续提升资产可解锁 VIP 档</div>' : '';
+    return `<div class="pg-tier ${q.qualified ? 'unlocked' : 'locked'}" data-pgtier="${tier}" data-qualified="${q.qualified ? 1 : 0}">
+      <div class="pg-head"><span>${TIERS[tier].name}</span>${badge}</div>
+      <div class="pg-row"><span>单日净入资 ≥ ${threshold} HKD</span>${inflow}</div>
+      <div class="pg-row"><span>连续持有（≥ ${threshold}）</span><span>${q.holding_days} / 30 天</span></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      ${hint}
+    </div>`;
+  };
+  return `<div class="section"><div class="card">
+    <div class="sec-title">我的报名资格</div>
+    ${one('standard', qual.standard)}
+    ${one('vip', qual.vip)}
+  </div></div>`;
+}
 
-  <div class="toast" id="toast"></div>
-
-  <script>
-    /* ============================================================
-       状态机模块（尽量纯，只描述状态与派生数据，不直接操作 DOM）
-       ============================================================ */
-    const STATE = {
-      GUEST: 0,
-      LOGGED_IN_NO_ACCOUNT: 1,
-      ACCOUNT_NOT_QUALIFIED: 2,
-      QUALIFIED_NOT_REGISTERED: 3,
-      REGISTERED: 4,
-      ENDED: 5
-    };
-
-    const TIER = {
-      STANDARD: 'standard',
-      VIP: 'vip'
-    };
-
-    const THRESHOLD = {
-      [TIER.STANDARD]: 10,
-      [TIER.VIP]: 100
-    };
-
-    const TICKET = {
-      VIP: { key: 'vip', label: 'VIP 档', price: 'HKD 1,888' },
-      STANDARD: { key: 'standard', label: '标准档', price: 'HKD 888' }
-    };
-
-    const COUNTRIES = [
-      { code: 'CN', label: '中国大陆', dialCode: '+86', phonePlaceholder: '请输入手机号' },
-      { code: 'HK', label: '中国香港', dialCode: '+852', phonePlaceholder: '请输入 8 位手机号' }
-    ];
-
-    // 场次数据（仅第一场已知，其余占位）
-    const EVENTS = [
-      { id: 1, artist: '东方神起', date: '2026-08-29', venue: '亚洲国际博览馆', weeksAway: 6, vipStock: 12, standardStock: 86 },
-      { id: 2, artist: 'Guest Artist A', date: '2026-09-19', venue: '香港体育馆', weeksAway: 9, vipStock: 0, standardStock: 34 },
-      { id: 3, artist: 'Guest Artist B', date: '2026-10-10', venue: '中环海滨活动空间', weeksAway: 12, vipStock: 8, standardStock: 120 },
-      { id: 4, artist: 'Guest Artist C', date: '2026-10-31', venue: '亚洲国际博览馆', weeksAway: 15, vipStock: 20, standardStock: 200 },
-      { id: 5, artist: 'Guest Artist D', date: '2026-11-21', venue: '香港体育馆', weeksAway: 18, vipStock: 5, standardStock: 67 }
-    ];
-
-    // 模拟后端返回的完整状态对象
-    function buildStateSnapshot(stateCode, tier, assetWan) {
-      const asset = assetWan * 10000;
-      const threshold = THRESHOLD[tier];
-      const gap = Math.max(0, threshold - assetWan);
-      const isQualified = assetWan >= threshold;
-
-      return {
-        stateCode,
-        tier,
-        assetWan,
-        threshold,
-        gap,
-        isQualified,
-        events: EVENTS
-      };
-    }
-
-    // 派生：用户在状态 2 达标后可选的 ticket 类型
-    function availableTickets(tier) {
-      if (tier === TIER.VIP) return [TICKET.VIP, TICKET.STANDARD];
-      return [TICKET.STANDARD];
-    }
-
-    /* ============================================================
-       DOM 渲染模块（依赖上面的状态机）
-       ============================================================ */
-    const page = document.getElementById('h5Page');
-    const stateSelect = document.getElementById('stateSelect');
-    const assetRange = document.getElementById('assetRange');
-    const assetValue = document.getElementById('assetValue');
-    const stateReadout = document.getElementById('stateReadout');
-    const mainCta = document.getElementById('mainCta');
-    const cancelCta = document.getElementById('cancelCta');
-    const ctaNote = document.getElementById('ctaNote');
-    const toast = document.getElementById('toast');
-    // ============================================================
-    // 多语言
-    // ============================================================
-    const I18N = {
-      'zh-CN': {
-        pageTitle: 'Prototype - 演唱会活动落地页状态机 Demo',
-        headerTitle: '活动中心',
-        brandName: '云锋有鱼',
-        heroTitle: '盛夏焕新<br>港乐星夜',
-        benefitsTitle: '限时优享权益',
-        benefitVipTitle: 'VIP 专属席位',
-        benefitVipDesc: '账户总资产 ≥ 100 万 HKD 可享 VIP 门票',
-        benefitStandardTitle: '标准档门票',
-        benefitStandardDesc: '账户总资产 ≥ 10 万 HKD 可享标准门票',
-        rulesTitle: '活动规则',
-        rule1: '账户总资产达到对应门槛（标准档 10 万 HKD / VIP 档 100 万 HKD），即可免费领取对应演唱会门票权益，无需额外支付票价。',
-        rule2: '「账户资产」为云锋有鱼 APP 交易页卡展示的账户总资产，涵盖股票、基金、虚拟资产、现金等。',
-        rule3: '每场演出前 3 周截止报名；距演出不足 3 周的场次将不可选。',
-        rule4: '整个活动周期内，同一用户限报 1 场，报名成功后不可取消、不可改场次。',
-        rule5: '门票将以实体票形式寄送，请确保收件地址准确；报名截止日前可修改地址。',
-        rule6: '云锋证券有限公司保留对活动的最终解释权，并有权修改、补充或终止活动。',
-        stateGuestTitle: '活动报名已开放',
-        stateGuestDesc: '登录后即可查看您的达标状态，并选择心仪场次报名。',
-        stateNoAccountTitle: '您尚未完成开户',
-        stateNoAccountDesc: '完成开户后，即可根据资产达标情况报名对应场次。',
-        statusNoneTitle: '账户总资产尚未达标',
-        statusStandardTitle: '已达到标准档',
-        statusVipTitle: '已达到 VIP 档',
-        gapToStandard: '距离标准档还差 <strong>{gap}</strong>，入金达标后即可报名标准档。',
-        gapToVip: '已达到标准档，距离 VIP 档还差 <strong>{gap}</strong>。',
-        statusVipReady: '已达到 VIP 档，可立即报名。',
-        assetLabel: '账户总资产',
-        depositBtn: '继续入金',
-        statusBadgeQualified: '已达标 · 可立即报名',
-        vipCustomer: 'VIP 档客户',
-        standardCustomer: '标准档客户',
-        eventsTitle: '可选场次',
-        eventsNoteDefault: '满足门槛即可免费领取',
-        eventsNoteLocked: '达标后即可选择',
-        eventsNoteLogin: '登录后可选',
-        eventsNoteOpenAccount: '完成开户并达标后可选',
-        stockOk: '可报名',
-        stockLow: '余量紧张',
-        stockOut: '报名已截止',
-        ticketVip: 'VIP 档',
-        ticketStandard: '标准档',
-        soldOut: '已售罄',
-        remaining: '剩 {n} 张',
-        ticketNoteLocked: '达标后可选',
-        ticketNoteQualified: '达标即赠',
-        ticketNoteUnqualified: '未达标',
-        ticketPriceLabel: '票面',
-        addressTitleAdd: '填写寄票地址',
-        addressTitleEdit: '修改收件信息',
-        addressSummaryLabel: '已选场次 / 档位',
-        labelRecipient: '收件人姓名',
-        placeholderRecipient: '请输入姓名',
-        labelCountry: '国家 / 地区',
-        labelAddress: '详细地址',
-        placeholderAddress: '请输入详细地址',
-        labelPhone: '联系电话',
-        autoFillBtn: '使用我的开户地址',
-        addressHint: '实体票将于报名截止后 5 个工作日内寄出。收件人、手机号、地址均为必填项。',
-        errorRecipient: '收件人姓名不能为空',
-        errorAddress: '详细地址不能为空',
-        errorPhone: '联系电话不能为空',
-        registeredSuccessTitle: '✅ 报名成功',
-        registeredSuccessDesc1: '您的门票已确认预留',
-        registeredSuccessDesc2: '我们将于演出前 <strong>7-10 天</strong><br>将实体票寄送至您填写的地址',
-        sectionNext: '接下来会发生什么',
-        step1Title: '门票制作',
-        step1Desc: '报名成功后，我们将统一安排门票制作',
-        step2Title: '寄送门票',
-        step2Desc: '制作完成后，将门票寄出<br>寄出时您将收到邮件通知',
-        step3Title: '签收门票',
-        step3Desc: '请保持手机畅通，及时签收',
-        sectionShipping: '收件信息',
-        infoRecipient: '收件人：',
-        infoAddress: '地址：',
-        infoPhone: '电话：',
-        editAddressBtn: '[修改收件信息]',
-        editDeadline: '（{date}前可修改）',
-        sectionAttendance: '到场须知',
-        attendanceTicket: '请携带实体门票入场',
-        attendanceGift: '现场设有云锋有鱼专属应援礼包领取点',
-        endedTitle: '感谢参与',
-        endedDesc: '「盛夏焕新 · 港乐星夜」活动已结束，期待与您在更多活动中相遇。',
-        surveyTitle: '满意度问卷',
-        surveyDesc: '您的反馈将帮助我们提供更好的权益活动体验。',
-        ctaLogin: '登录 / 注册',
-        ctaOpenAccount: '前往开户',
-        ctaDeposit: '立即入金',
-        ctaAddress: '填写寄票地址',
-        ctaSubmit: '确认提交',
-        ctaSave: '保存',
-        ctaCancel: '取消',
-        ctaNoteLogin: '登录后查看您的达标状态',
-        ctaNoteOpenAccount: '完成开户后报名',
-        ctaNoteDeposit: '达标后即可选择场次',
-        ctaNoteAddress: '确认选择后填写收件信息',
-        ctaNoteSubmit: '提交后将锁定名额',
-        ctaNoteSave: '保存后将更新收件信息',
-        ctaNoteSelectFirst: '请先选择场次与档位',
-        toastLogin: '跳转登录页',
-        toastOpenAccount: '跳转开户流程',
-        toastDeposit: '跳转入金页',
-        toastAutoFill: '已使用开户地址',
-        toastSelectFirst: '请先选择场次与档位',
-        toastSaveSuccess: '保存成功！',
-        toastRegisterSuccess: '报名成功！',
-        countryCN: '中国大陆',
-        countryHK: '中国香港',
-        phonePlaceholderCN: '请输入手机号',
-        phonePlaceholderHK: '请输入 8 位手机号',
-        sampleRecipient: '张三',
-        sampleAddress: '香港九龙尖沙咀...',
-        samplePhone: '9123 4567',
-        statusNone: '未达标标准档',
-        statusStandard: '已达到标准档，未达标 VIP 档',
-        statusVip: '已达到 VIP 档',
-        tierStandard: '标准档',
-        tierVip: 'VIP 档'
-      },
-      'zh-TW': {
-        pageTitle: 'Prototype - 演唱會活動落地頁狀態機 Demo',
-        headerTitle: '活動中心',
-        brandName: '雲鋒有魚',
-        heroTitle: '盛夏煥新<br>港樂星夜',
-        benefitsTitle: '限時優享權益',
-        benefitVipTitle: 'VIP 專屬席位',
-        benefitVipDesc: '帳戶總資產 ≥ 100 萬 HKD 可享 VIP 門票',
-        benefitStandardTitle: '標準檔門票',
-        benefitStandardDesc: '帳戶總資產 ≥ 10 萬 HKD 可享標準門票',
-        rulesTitle: '活動規則',
-        rule1: '帳戶總資產達到對應門檻（標準檔 10 萬 HKD / VIP 檔 100 萬 HKD），即可免費領取對應演唱會門票權益，無需額外支付票價。',
-        rule2: '「帳戶資產」為雲鋒有魚 APP 交易頁卡展示的帳戶總資產，涵蓋股票、基金、虛擬資產、現金等。',
-        rule3: '每場演出前 3 週截止報名；距演出不足 3 週的場次將不可選。',
-        rule4: '整個活動週期內，同一用戶限報 1 場，報名成功後不可取消、不可改場次。',
-        rule5: '門票將以實體票形式寄送，請確保收件地址準確；報名截止日前可修改地址。',
-        rule6: '雲鋒證券有限公司保留對活動的最終解釋權，並有權修改、補充或終止活動。',
-        stateGuestTitle: '活動報名已開放',
-        stateGuestDesc: '登入後即可查看您的達標狀態，並選擇心儀場次報名。',
-        stateNoAccountTitle: '您尚未完成開戶',
-        stateNoAccountDesc: '完成開戶後，即可根據資產達標情況報名對應場次。',
-        statusNoneTitle: '帳戶總資產尚未達標',
-        statusStandardTitle: '已達到標準檔',
-        statusVipTitle: '已達到 VIP 檔',
-        gapToStandard: '距離標準檔還差 <strong>{gap}</strong>，入金達標後即可報名標準檔。',
-        gapToVip: '已達到標準檔，距離 VIP 檔還差 <strong>{gap}</strong>。',
-        statusVipReady: '已達到 VIP 檔，可立即報名。',
-        assetLabel: '帳戶總資產',
-        depositBtn: '繼續入金',
-        statusBadgeQualified: '已達標 · 可立即報名',
-        vipCustomer: 'VIP 檔客戶',
-        standardCustomer: '標準檔客戶',
-        eventsTitle: '可選場次',
-        eventsNoteDefault: '滿足門檻即可免費領取',
-        eventsNoteLocked: '達標後即可選擇',
-        eventsNoteLogin: '登入後可選',
-        eventsNoteOpenAccount: '完成開戶並達標後可選',
-        stockOk: '可報名',
-        stockLow: '餘量緊張',
-        stockOut: '報名已截止',
-        ticketVip: 'VIP 檔',
-        ticketStandard: '標準檔',
-        soldOut: '已售罄',
-        remaining: '剩 {n} 張',
-        ticketNoteLocked: '達標後可選',
-        ticketNoteQualified: '達標即贈',
-        ticketNoteUnqualified: '未達標',
-        ticketPriceLabel: '票面',
-        addressTitleAdd: '填寫寄票地址',
-        addressTitleEdit: '修改收件資訊',
-        addressSummaryLabel: '已選場次 / 檔位',
-        labelRecipient: '收件人姓名',
-        placeholderRecipient: '請輸入姓名',
-        labelCountry: '國家 / 地區',
-        labelAddress: '詳細地址',
-        placeholderAddress: '請輸入詳細地址',
-        labelPhone: '聯繫電話',
-        autoFillBtn: '使用我的開戶地址',
-        addressHint: '實體票將於報名截止後 5 個工作日內寄出。收件人、手機號、地址均為必填項。',
-        errorRecipient: '收件人姓名不能為空',
-        errorAddress: '詳細地址不能為空',
-        errorPhone: '聯繫電話不能為空',
-        registeredSuccessTitle: '✅ 報名成功',
-        registeredSuccessDesc1: '您的門票已確認預留',
-        registeredSuccessDesc2: '我們將於演出前 <strong>7-10 天</strong><br>將實體票寄送至您填寫的地址',
-        sectionNext: '接下來會發生什麼',
-        step1Title: '門票製作',
-        step1Desc: '報名成功後，我們將統一安排門票製作',
-        step2Title: '寄送門票',
-        step2Desc: '製作完成後，將門票寄出<br>寄出時您將收到郵件通知',
-        step3Title: '簽收門票',
-        step3Desc: '請保持手機暢通，及時簽收',
-        sectionShipping: '收件資訊',
-        infoRecipient: '收件人：',
-        infoAddress: '地址：',
-        infoPhone: '電話：',
-        editAddressBtn: '[修改收件資訊]',
-        editDeadline: '（{date}前可修改）',
-        sectionAttendance: '到場須知',
-        attendanceTicket: '請攜帶實體門票入場',
-        attendanceGift: '現場設有雲鋒有魚專屬應援禮包領取點',
-        endedTitle: '感謝參與',
-        endedDesc: '「盛夏煥新 · 港樂星夜」活動已結束，期待與您在更多活動中相遇。',
-        surveyTitle: '滿意度問卷',
-        surveyDesc: '您的反饋將幫助我們提供更好的權益活動體驗。',
-        ctaLogin: '登入 / 註冊',
-        ctaOpenAccount: '前往開戶',
-        ctaDeposit: '立即入金',
-        ctaAddress: '填寫寄票地址',
-        ctaSubmit: '確認提交',
-        ctaSave: '儲存',
-        ctaCancel: '取消',
-        ctaNoteLogin: '登入後查看您的達標狀態',
-        ctaNoteOpenAccount: '完成開戶後報名',
-        ctaNoteDeposit: '達標後即可選擇場次',
-        ctaNoteAddress: '確認選擇後填寫收件資訊',
-        ctaNoteSubmit: '提交後將鎖定名額',
-        ctaNoteSave: '儲存後將更新收件資訊',
-        ctaNoteSelectFirst: '請先選擇場次與檔位',
-        toastLogin: '跳轉登入頁',
-        toastOpenAccount: '跳轉開戶流程',
-        toastDeposit: '跳轉入金頁',
-        toastAutoFill: '已使用開戶地址',
-        toastSelectFirst: '請先選擇場次與檔位',
-        toastSaveSuccess: '儲存成功！',
-        toastRegisterSuccess: '報名成功！',
-        countryCN: '中國大陸',
-        countryHK: '中國香港',
-        phonePlaceholderCN: '請輸入手機號',
-        phonePlaceholderHK: '請輸入 8 位手機號',
-        sampleRecipient: '張三',
-        sampleAddress: '香港九龍尖沙咀...',
-        samplePhone: '9123 4567',
-        statusNone: '未達標標準檔',
-        statusStandard: '已達到標準檔，未達標 VIP 檔',
-        statusVip: '已達到 VIP 檔',
-        tierStandard: '標準檔',
-        tierVip: 'VIP 檔'
-      },
-      'en': {
-        pageTitle: 'Prototype - Concert Event Landing Page State Machine Demo',
-        headerTitle: 'Events',
-        brandName: 'Yunfeng Youyu',
-        heroTitle: 'Summer Refresh<br>HK Music Night',
-        benefitsTitle: 'Limited Benefits',
-        benefitVipTitle: 'VIP Exclusive Seat',
-        benefitVipDesc: 'Total assets ≥ 1M HKD for VIP ticket',
-        benefitStandardTitle: 'Standard Ticket',
-        benefitStandardDesc: 'Total assets ≥ 100K HKD for standard ticket',
-        rulesTitle: 'Event Rules',
-        rule1: 'Users whose total account assets reach the threshold (Standard: 100K HKD / VIP: 1M HKD) can redeem the corresponding concert ticket benefit for free; no additional ticket payment is required.',
-        rule2: '"Account assets" refers to the total account assets shown on the Yunfeng Youyu APP trading page, covering stocks, funds, virtual assets, cash, etc.',
-        rule3: 'Registration closes 3 weeks before each show; shows less than 3 weeks away cannot be selected.',
-        rule4: 'Each user may register for only 1 show during the entire event period. After successful registration, cancellation or show changes are not allowed.',
-        rule5: 'Tickets will be sent as physical tickets. Please ensure the shipping address is accurate; the address can be modified before the registration deadline.',
-        rule6: 'Yunfeng Securities Limited reserves the right of final interpretation of the event and may modify, supplement, or terminate the event.',
-        stateGuestTitle: 'Registration Now Open',
-        stateGuestDesc: 'Log in to view your qualification status and register for your preferred show.',
-        stateNoAccountTitle: 'Account Opening Not Completed',
-        stateNoAccountDesc: 'After opening an account, you can register for the corresponding show based on your asset qualification.',
-        statusNoneTitle: 'Total Assets Not Yet Qualified',
-        statusStandardTitle: 'Standard Tier Reached',
-        statusVipTitle: 'VIP Tier Reached',
-        gapToStandard: '<strong>{gap}</strong> away from Standard tier. Deposit to qualify.',
-        gapToVip: 'Standard tier reached, <strong>{gap}</strong> away from VIP tier.',
-        statusVipReady: 'VIP tier reached, register now.',
-        assetLabel: 'Total Account Assets',
-        depositBtn: 'Deposit More',
-        statusBadgeQualified: 'Qualified · Register Now',
-        vipCustomer: 'VIP Customer',
-        standardCustomer: 'Standard Customer',
-        eventsTitle: 'Available Shows',
-        eventsNoteDefault: 'Free once threshold is met',
-        eventsNoteLocked: 'Select after qualification',
-        eventsNoteLogin: 'Available after login',
-        eventsNoteOpenAccount: 'Available after account opening & qualification',
-        stockOk: 'Available',
-        stockLow: 'Low Stock',
-        stockOut: 'Registration Closed',
-        ticketVip: 'VIP',
-        ticketStandard: 'Standard',
-        soldOut: 'Sold Out',
-        remaining: '{n} left',
-        ticketNoteLocked: 'Select after qualified',
-        ticketNoteQualified: 'Free if qualified',
-        ticketNoteUnqualified: 'Not qualified',
-        ticketPriceLabel: 'Face value',
-        addressTitleAdd: 'Shipping Address',
-        addressTitleEdit: 'Edit Shipping Info',
-        addressSummaryLabel: 'Selected Show / Tier',
-        labelRecipient: 'Recipient Name',
-        placeholderRecipient: 'Enter name',
-        labelCountry: 'Country / Region',
-        labelAddress: 'Address',
-        placeholderAddress: 'Enter address',
-        labelPhone: 'Contact Phone',
-        autoFillBtn: 'Use Account Address',
-        addressHint: 'Physical tickets will be shipped within 5 business days after the registration deadline. Recipient, mobile number, and address are all required.',
-        errorRecipient: 'Recipient name is required',
-        errorAddress: 'Address is required',
-        errorPhone: 'Phone number is required',
-        registeredSuccessTitle: '✅ Registered',
-        registeredSuccessDesc1: 'Your ticket has been reserved',
-        registeredSuccessDesc2: 'We will ship the physical ticket to your address <strong>7-10 days</strong> before the show',
-        sectionNext: 'What Happens Next',
-        step1Title: 'Ticket Production',
-        step1Desc: 'After registration, we will arrange ticket production',
-        step2Title: 'Ticket Shipping',
-        step2Desc: 'Once produced, tickets will be shipped<br>You will receive an email notification when shipped',
-        step3Title: 'Ticket Receipt',
-        step3Desc: 'Please keep your phone available to receive the ticket',
-        sectionShipping: 'Shipping Info',
-        infoRecipient: 'Recipient:',
-        infoAddress: 'Address:',
-        infoPhone: 'Phone:',
-        editAddressBtn: '[Edit Shipping Info]',
-        editDeadline: '(Editable before {date})',
-        sectionAttendance: 'Attendance Notes',
-        attendanceTicket: 'Please bring your physical ticket to enter',
-        attendanceGift: 'Exclusive Yunfeng Youyu gift pickup on-site',
-        endedTitle: 'Thank You',
-        endedDesc: '"Summer Refresh · HK Music Night" has ended. We look forward to seeing you at future events.',
-        surveyTitle: 'Satisfaction Survey',
-        surveyDesc: 'Your feedback helps us provide better event experiences.',
-        ctaLogin: 'Log In / Sign Up',
-        ctaOpenAccount: 'Open Account',
-        ctaDeposit: 'Deposit Now',
-        ctaAddress: 'Enter Address',
-        ctaSubmit: 'Submit',
-        ctaSave: 'Save',
-        ctaCancel: 'Cancel',
-        ctaNoteLogin: 'Check qualification after login',
-        ctaNoteOpenAccount: 'Register after account opening',
-        ctaNoteDeposit: 'Select shows after qualification',
-        ctaNoteAddress: 'Fill shipping info after selection',
-        ctaNoteSubmit: 'Seat will be locked after submit',
-        ctaNoteSave: 'Shipping info will be updated',
-        ctaNoteSelectFirst: 'Please select event and tier first',
-        toastLogin: 'Go to login',
-        toastOpenAccount: 'Go to account opening',
-        toastDeposit: 'Go to deposit',
-        toastAutoFill: 'Account address used',
-        toastSelectFirst: 'Please select event and tier first',
-        toastSaveSuccess: 'Saved!',
-        toastRegisterSuccess: 'Registered!',
-        countryCN: 'Mainland China',
-        countryHK: 'Hong Kong, China',
-        phonePlaceholderCN: 'Enter mobile number',
-        phonePlaceholderHK: 'Enter 8-digit mobile number',
-        sampleRecipient: 'John Doe',
-        sampleAddress: '123 Nathan Road, Tsim Sha Tsui...',
-        samplePhone: '9123 4567',
-        statusNone: 'Not qualified for Standard tier',
-        statusStandard: 'Standard tier reached, not yet VIP',
-        statusVip: 'VIP tier reached',
-        tierStandard: 'Standard',
-        tierVip: 'VIP'
-      }
-    };
-
-    let currentLang = localStorage.getItem('concertLang') || document.documentElement.lang || 'zh-CN';
-    if (!I18N[currentLang]) currentLang = 'zh-CN';
-
-    function t(key, vars) {
-      let str = (I18N[currentLang] && I18N[currentLang][key]) || I18N['zh-CN'][key] || key;
-      if (vars) {
-        str = str.replace(/\{(\w+)\}/g, (m, k) => vars[k] !== undefined ? vars[k] : m);
-      }
-      return str;
-    }
-
-    function renderLangSelector() {
-      return `
-        <select class="lang-switcher" onchange="changeLanguage(this.value)">
-          <option value="zh-CN" ${currentLang === 'zh-CN' ? 'selected' : ''}>简</option>
-          <option value="zh-TW" ${currentLang === 'zh-TW' ? 'selected' : ''}>繁</option>
-          <option value="en" ${currentLang === 'en' ? 'selected' : ''}>En</option>
-        </select>
-      `;
-    }
-
-    function changeLanguage(lang) {
-      if (!I18N[lang]) return;
-      currentLang = lang;
-      localStorage.setItem('concertLang', lang);
-      document.documentElement.lang = lang;
-      render();
-    }
-    window.changeLanguage = changeLanguage;
-
-
-    // 当前原型交互状态
-    let current = {
-      stateCode: 0,
-      tier: TIER.STANDARD,
-      assetWan: 5,
-      selectedEventId: null,
-      selectedTicket: null,
-      view: 'events', // 'events' | 'address'
-      address: {
-        recipient: '',
-        country: 'CN',
-        detail: '',
-        dialCode: '+86',
-        phone: ''
-      }
-    };
-
-    function fmtMoney(n) {
-      return n.toLocaleString('en-HK');
-    }
-
-    function fmtMoneyFull(wan) {
-      const n = wan * 10000;
-      return 'HKD ' + n.toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function assetTierStatus(assetWan) {
-      const STANDARD = 10;
-      const VIP = 100;
-      if (assetWan < STANDARD) {
-        return { level: 'none', reached: t('statusNone'), nextLabel: t('tierStandard'), nextThreshold: STANDARD, gap: STANDARD - assetWan };
-      } else if (assetWan < VIP) {
-        return { level: 'standard', reached: t('tierStandard'), nextLabel: t('tierVip'), nextThreshold: VIP, gap: VIP - assetWan };
-      } else {
-        return { level: 'vip', reached: t('tierVip'), nextLabel: null, nextThreshold: null, gap: 0 };
-      }
-    }
-
-    function canSelectTicket(ticketKey, assetWan) {
-      if (ticketKey === TICKET.VIP.key) return assetWan >= 100;
-      if (ticketKey === TICKET.STANDARD.key) return assetWan >= 10;
-      return false;
-    }
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 1600);
-    }
-
-    function renderHeader() {
-      return `
-        <div class="h5-header">
-          <div class="back">‹</div>
-          <div class="title">${t('headerTitle')}</div>
+// == 各状态页面 ==
+function pageGuest(){
+  return kv()
+    + eventCard(tierCard('vip', false, '登录后可报名') + tierCard('standard', false, '登录后可报名'))
+    + rulesPanel()
+    + ctaBar('登录 / 注册', 'cta-login');
+}
+function pageNoAccount(){
+  return kv()
+    + `<div class="section"><div class="status-card">
+        <h3>您尚未完成开户，无法报名</h3>
+        <div class="muted">完成开户并达到对应档位要求后，即可报名领取门票权益。</div>
+      </div></div>`
+    + eventCard(tierCard('vip', false, '完成开户并达标后可选') + tierCard('standard', false, '完成开户并达标后可选'))
+    + rulesPanel()
+    + ctaBar('前往开户', 'cta-open');
+}
+function pageOpenedOld(){
+  return kv()
+    + `<div class="section"><div class="status-card warn">
+        <h3>本活动仅限 2026 年 8 月 1 日起开户成功的客户参与</h3>
+        <div class="muted">您可浏览活动内容，但无法参与报名。</div>
+      </div></div>`
+    + eventCard(tierCard('vip', false, '仅限新开户客户参与') + tierCard('standard', false, '仅限新开户客户参与'))
+    + rulesPanel();
+}
+function pageOpened(qual){
+  const stdOk = qual.standard.qualified, vipOk = qual.vip.qualified;
+  let html = kv() + qualCards(qual);
+  html += eventCard(
+    tierCard('vip', vipOk, vipOk ? '' : '未达标')
+    + tierCard('standard', stdOk || vipOk, (stdOk || vipOk) ? '' : '达标后可选')
+  );
+  html += rulesPanel();
+  if (!vipOk) html += ctaBar('继续入金', 'cta-deposit');
+  return html;
+}
+function pageBooked(){
+  const reg = currentReg();
+  const tier = TIERS[reg.ticket_type];
+  return kv()
+    + `<div class="section"><div class="card">
+        <div class="success-hero">
+          <div class="check">✓</div>
+          <h3>报名成功</h3>
+          <div class="muted">您的门票已确认预留</div>
+          <div class="muted" style="margin-top:6px">${EVENT.artist} · ${EVENT.date} · ${EVENT.venue} · ${tier.name}</div>
         </div>
-      `;
-    }
-
-    function renderHero(title, tagText) {
-      return `
-        <section class="hero">
-          ${renderLangSelector()}
-          <div class="hero-brand">
-            <div class="logo">云</div>
-            <span>${t('brandName')}</span>
-          </div>
-          <div class="hero-content">
-            <h1>${title}</h1>
-            ${tagText ? `<div class="tag">${tagText}</div>` : ''}
-          </div>
-          <div class="hero-illustration">
-            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="150" cy="60" r="35" fill="url(#g1)" opacity="0.9"/>
-              <rect x="90" y="90" width="95" height="110" rx="16" fill="#fff" fill-opacity="0.14" stroke="#fff" stroke-opacity="0.25"/>
-              <rect x="105" y="110" width="65" height="50" rx="10" fill="#fff" fill-opacity="0.22"/>
-              <path d="M115 145 L130 125 L145 138 L160 115" stroke="#f4b000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="142" cy="55" r="4" fill="#f4b000"/>
-              <circle cx="160" cy="75" r="3" fill="#fff"/>
-              <defs>
-                <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 60) rotate(90) scale(35)">
-                  <stop stop-color="#60a5fa"/>
-                  <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
-                </radialGradient>
-              </defs>
-            </svg>
-          </div>
-        </section>
-      `;
-    }
-
-    function renderBenefits() {
-      return `
-        <div class="benefits">
-          <div class="benefits-title">${t('benefitsTitle')}</div>
-          <div class="benefit-grid">
-            <div class="benefit-item">
-              <div class="icon">🎫</div>
-              <h3>${t('benefitVipTitle')}</h3>
-              <p>${t('benefitVipDesc')}</p>
-            </div>
-            <div class="benefit-item">
-              <div class="icon">🎸</div>
-              <h3>${t('benefitStandardTitle')}</h3>
-              <p>${t('benefitStandardDesc')}</p>
-            </div>
-          </div>
+      </div>
+      <div class="card">
+        <div class="sec-title">接下来会发生什么</div>
+        <div class="step"><div class="step-num">1</div><div class="step-body">
+          <b>门票制作</b><p>报名成功后，我们将统一安排门票制作。</p>
+        </div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body">
+          <b>寄送门票</b><p>制作完成后，门票将于演出前 7-10 天寄出，寄出时您将收到邮件通知。寄票前我们将核实您在活动期间的交易手数（标准档 ≥ 5 手 / VIP 档 ≥ 10 手），核实通过后安排寄出。</p>
+        </div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body">
+          <b>签收门票</b><p>请保持手机畅通，及时签收。</p>
+        </div></div>
+        <div class="notice">若交易手数未满足要求，将不予寄票，核实结果将以邮件通知。</div>
+      </div>
+      <div class="card">
+        <div class="sec-title">收件信息</div>
+        <div class="info-row"><span class="k">收件人</span><span class="v">${esc(reg.name)}</span></div>
+        <div class="info-row"><span class="k">地址</span><span class="v">${esc(reg.region)} ${esc(reg.address)}</span></div>
+        <div class="info-row"><span class="k">电话</span><span class="v">${esc(reg.phone_code)} ${esc(reg.phone)}</span></div>
+        <div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（报名截止日前可修改）</span></div>
+      </div>
+      <div class="card">
+        <div class="sec-title">到场须知</div>
+        <div class="muted">🎫 请携带实体门票入场。</div>
+        <div class="muted" style="margin-top:6px">🎁 现场设有云锋有鱼专属应援礼包领取点。</div>
+      </div></div>`;
+}
+function pageEnded(){
+  return kv()
+    + `<div class="section"><div class="card">
+        <div class="success-hero">
+          <div class="check" style="background:var(--brand)">★</div>
+          <h3>活动已圆满结束</h3>
+          <div class="muted">感谢您的参与，期待与您再次相见。</div>
+          <div class="muted" style="margin-top:6px">${EVENT.artist} · ${EVENT.date} · ${EVENT.venue}</div>
         </div>
-      `;
-    }
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="muted" style="margin-bottom:10px">邀请您花 1 分钟完成满意度问卷，帮助我们做得更好。</div>
+        <button class="cta secondary" id="cta-survey">填写满意度问卷</button>
+      </div></div>`;
+}
 
-    function renderRules() {
-      return `
-        <div class="rules-section">
-          <div class="rules-header">
-            <span>${t('rulesTitle')}</span>
-          </div>
-          <div class="rules-body">
-            <ol>
-              <li>${t('rule1')}</li>
-              <li>${t('rule2')}</li>
-              <li>${t('rule3')}</li>
-              <li>${t('rule4')}</li>
-              <li>${t('rule5')}</li>
-              <li>${t('rule6')}</li>
-            </ol>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderStateGuest() {
-      document.title = t('pageTitle');
-      const snapshot = buildStateSnapshot(current.stateCode, current.tier, current.assetWan);
-      return `
-        ${renderHero(t('heroTitle'), '')}
-        <div class="content">
-          ${renderBenefits()}
-          <div class="state-card">
-            <div class="state-title">${t('stateGuestTitle')}</div>
-            <div class="state-desc">${t('stateGuestDesc')}</div>
-          </div>
-          ${renderEventsList(snapshot, false, 'eventsNoteLogin', 'eventsNoteOpenAccount')}
-          ${renderRules()}
-        </div>
-      `;
-    }
-
-    function renderStateLoggedInNoAccount(snapshot) {
-      return `
-        ${renderHero(t('heroTitle'), '')}
-        <div class="content">
-          <div class="state-card">
-            <div class="state-title">${t('stateNoAccountTitle')}</div>
-            <div class="state-desc">${t('stateNoAccountDesc')}</div>
-          </div>
-          ${renderBenefits()}
-          ${renderEventsList(snapshot, false, 'eventsNoteOpenAccount', 'eventsNoteOpenAccount')}
-          ${renderRules()}
-        </div>
-      `;
-    }
-
-    function renderStateNotQualified(snapshot) {
-      const status = assetTierStatus(snapshot.assetWan);
-      const title = t('heroTitle');
-      let stateTitle, gapText;
-      if (status.level === 'none') {
-        stateTitle = t('statusNoneTitle');
-        gapText = t('gapToStandard', { gap: fmtMoneyFull(status.gap) });
-      } else if (status.level === 'standard') {
-        stateTitle = t('statusStandardTitle');
-        gapText = t('gapToVip', { gap: fmtMoneyFull(status.gap) });
-      } else {
-        stateTitle = t('statusVipTitle');
-        gapText = t('statusVipReady');
-      }
-      return `
-        ${renderHero(title, '')}
-        <div class="content">
-          <div class="state-card">
-            <div class="state-title">${stateTitle}</div>
-            <div class="asset-row">
-              <span class="label">${t('assetLabel')}</span>
-              <span class="value" style="${status.level === 'vip' ? 'color:var(--semantic-up);' : ''}">${fmtMoneyFull(snapshot.assetWan)}</span>
-            </div>
-            <div class="gap-row">
-              <div class="gap">${gapText}</div>
-              ${status.level !== 'vip' ? `<button class="deposit-mini-btn" onclick="showToast(t('toastDeposit'))">${t('depositBtn')}</button>` : ''}
-            </div>
-          </div>
-          ${renderEventsList(snapshot, true)}
-          ${renderRules()}
-        </div>
-      `;
-    }
-
-    function renderStateQualified(snapshot) {
-      return `
-        ${renderHero(t('heroTitle'), '')}
-        <div class="content">
-          <span class="status-badge qualified">${t('statusBadgeQualified')}</span>
-          <div class="state-card" style="margin-bottom: 18px;">
-            <div class="state-title">${snapshot.tier === TIER.VIP ? t('vipCustomer') : t('standardCustomer')}</div>
-            <div class="asset-row">
-              <span class="label">${t('assetLabel')}</span>
-              <span class="value" style="color:var(--semantic-up);">${fmtMoneyFull(snapshot.assetWan)}</span>
-            </div>
-          </div>
-          ${renderEventsList(snapshot, true)}
-          ${renderRules()}
-        </div>
-      `;
-    }
-
-    function renderEventsList(snapshot, interactive, hint, disabledHint) {
-      const tickets = [TICKET.VIP, TICKET.STANDARD];
-      return `
-        <div class="events-section">
-          <div class="events-header">
-            <h3>${t('eventsTitle')}</h3>
-            <span class="note">${hint ? t(hint) : (interactive ? t('eventsNoteDefault') : t('eventsNoteLocked'))}</span>
-          </div>
-          ${snapshot.events.map(ev => {
-            const isClosed = ev.weeksAway <= 3;
-            const selected = interactive && current.selectedEventId === ev.id;
-            const statusClass = isClosed ? 'out' : ev.standardStock < 20 ? 'low' : 'ok';
-            const statusText = isClosed ? t('stockOut') : ev.standardStock < 20 ? t('stockLow') : t('stockOk');
-            return `
-              <div class="event-card ${isClosed || !interactive ? 'disabled' : ''} ${selected ? 'selected' : ''}" ${interactive && !isClosed ? `onclick="selectEvent(${ev.id})"` : ''}>
-                <div class="event-top">
-                  <div>
-                    <div class="artist">${ev.artist}</div>
-                    <div class="date">${ev.date} · ${ev.venue}</div>
-                  </div>
-                  <span class="stock ${statusClass}">${statusText}</span>
-                </div>
-                ${!isClosed ? `
-                  <div class="ticket-options">
-                    ${tickets.map(tk => {
-                      const stock = ev[`${tk.key}Stock`];
-                      const soldOut = stock <= 0;
-                      const qualified = canSelectTicket(tk.key, snapshot.assetWan);
-                      const tkSelected = selected && current.selectedTicket === tk.key;
-                      const tkDisabled = soldOut || !qualified || !interactive;
-                      const canClick = interactive && !soldOut && qualified;
-                      const label = tk.key === 'vip' ? t('ticketVip') : t('ticketStandard');
-                      return `
-                        <div class="ticket-chip ${tkDisabled ? 'disabled' : ''} ${tkSelected ? 'selected' : ''}" ${canClick ? `onclick="event.stopPropagation(); selectTicket(${ev.id}, '${tk.key}')"` : ''}>
-                          <div class="chip-line">
-                            <span class="label">${label}</span>
-                            <span class="stock-count">${soldOut ? t('soldOut') : t('remaining', { n: stock })}</span>
-                          </div>
-                          <div class="chip-note">${!interactive ? t(disabledHint || 'ticketNoteLocked') : qualified ? t('ticketNoteQualified') : t('ticketNoteUnqualified')}</div>
-                          <div class="chip-price">${t('ticketPriceLabel')} ${tk.price}</div>
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-
-    function renderAddressPage(snapshot) {
-      const ev = EVENTS.find(e => e.id === current.selectedEventId) || EVENTS[0];
-      const ticket = [TICKET.VIP, TICKET.STANDARD].find(t => t.key === current.selectedTicket) || TICKET.STANDARD;
-      const isEditMode = snapshot.stateCode === STATE.REGISTERED;
-      const countryOptions = COUNTRIES.map(c => `<option value="${c.code}" ${current.address.country === c.code ? 'selected' : ''}>${t('country' + c.code)}</option>`).join('');
-      const selectedCountry = COUNTRIES.find(c => c.code === current.address.country) || COUNTRIES[0];
-      const dialOptions = COUNTRIES.map(c => `<option value="${c.dialCode}" ${current.address.dialCode === c.dialCode ? 'selected' : ''}>${c.dialCode}</option>`).join('');
-      const ticketLabel = ticket.key === 'vip' ? t('ticketVip') : t('ticketStandard');
-      return `
-        <div class="h5-header">
-          <div class="back" onclick="goBackFromAddress()">‹</div>
-          <div class="title">${isEditMode ? t('addressTitleEdit') : t('addressTitleAdd')}</div>
-          ${renderLangSelector()}
-        </div>
-        <div class="address-page">
-          <div class="address-summary">
-            <div class="label">${t('addressSummaryLabel')}</div>
-            <div class="value">${ev.artist} · ${ticketLabel} · ${ticket.price}</div>
-          </div>
-
-          <div class="form-group">
-            <label>${t('labelRecipient')}</label>
-            <input id="addrRecipient" class="form-input" type="text" placeholder="${t('placeholderRecipient')}" value="${current.address.recipient}" oninput="clearFieldErrors()">
-            <div class="error-msg" id="addrRecipientError"></div>
-          </div>
-
-          <div class="form-group">
-            <label>${t('labelCountry')}</label>
-            <select id="addrCountry" class="form-select" style="width:100%;" onchange="onCountryChange(this.value); clearFieldErrors()">
-              ${countryOptions}
-            </select>
-            <div class="error-msg" id="addrCountryError"></div>
-          </div>
-
-          <div class="form-group">
-            <label>${t('labelAddress')}</label>
-            <textarea id="addrDetail" class="form-textarea" placeholder="${t('placeholderAddress')}" oninput="clearFieldErrors()">${current.address.detail}</textarea>
-            <div class="error-msg" id="addrDetailError"></div>
-          </div>
-
-          <div class="form-group">
-            <label>${t('labelPhone')}</label>
-            <div class="form-row">
-              <select id="addrDialCode" class="form-select">
-                ${dialOptions}
-              </select>
-              <input id="addrPhone" class="form-input" type="tel" placeholder="${t('phonePlaceholder' + selectedCountry.code)}" value="${current.address.phone}" oninput="clearFieldErrors()">
-            </div>
-            <div class="error-msg" id="addrPhoneError"></div>
-          </div>
-
-          <button class="auto-fill-btn" onclick="autoFillAddress()">${t('autoFillBtn')}</button>
-
-          <div class="form-hint">${t('addressHint')}</div>
-        </div>
-      `;
-    }
-
-    function goBackToEvents() {
-      current.view = 'events';
-      render();
-    }
-
-    function editAddressFromRegistered() {
-      current.view = 'address';
-      render();
-    }
-
-    function goBackFromAddress() {
-      if (current.stateCode === STATE.REGISTERED) {
-        current.view = 'events';
-        render();
-      } else {
-        goBackToEvents();
-      }
-    }
-
-    function cancelAddressEdit() {
-      current.view = 'events';
-      render();
-    }
-
-    function onCountryChange(code) {
-      const country = COUNTRIES.find(c => c.code === code);
-      if (country) {
-        current.address.country = code;
-        current.address.dialCode = country.dialCode;
-        const dialSelect = document.getElementById('addrDialCode');
-        const phoneInput = document.getElementById('addrPhone');
-        if (dialSelect) dialSelect.value = country.dialCode;
-        if (phoneInput) {
-          phoneInput.placeholder = country.phonePlaceholder;
-          // 清空已输入手机号，避免区号与号码不匹配
-          phoneInput.value = '';
-        }
-      }
-    }
-
-    function autoFillAddress() {
-      current.address = {
-        recipient: t('sampleRecipient'),
-        country: 'CN',
-        detail: t('sampleAddress'),
-        dialCode: '+86',
-        phone: t('samplePhone')
-      };
-      render();
-      showToast(t('toastAutoFill'));
-    }
-
-    function renderStateRegistered(snapshot) {
-      const ev = EVENTS[0];
-      const ticketLabel = current.selectedTicket === 'vip' ? t('ticketVip') : t('ticketStandard');
-      const address = current.address || {};
-      const recipient = address.recipient || t('sampleRecipient');
-      const detail = address.detail || t('sampleAddress');
-      const dialCode = address.dialCode || '+852';
-      const phone = address.phone || t('samplePhone');
-      const deadlineDate = currentLang === 'en' ? 'Aug 5' : '8月5日';
-      return `
-        ${renderHero(t('heroTitle'), '')}
-        <div class="content">
-          <div class="state-card">
-            <div class="event-top" style="margin-bottom:0;">
-              <div>
-                <div class="artist" style="font-size:18px;">${ev.artist} · ${ticketLabel}</div>
-                <div class="date" style="margin-top:6px;">${ev.date} · ${ev.venue}</div>
-              </div>
-            </div>
-            <div class="success-box">
-              <div class="success-title">${t('registeredSuccessTitle')}</div>
-              <div class="success-desc">${t('registeredSuccessDesc1')}</div>
-              <div class="success-desc" style="margin-top:10px;">${t('registeredSuccessDesc2')}</div>
-            </div>
-          </div>
-
-          <div class="section-divider">${t('sectionNext')}</div>
-          <div class="state-card" style="margin-top:0;">
-            <div class="steps-list">
-              <div class="step-item">
-                <div class="step-num">1</div>
-                <div class="step-content">
-                  <div class="step-title">${t('step1Title')}</div>
-                  <div class="step-desc">${t('step1Desc')}</div>
-                </div>
-              </div>
-              <div class="step-item">
-                <div class="step-num">2</div>
-                <div class="step-content">
-                  <div class="step-title">${t('step2Title')}</div>
-                  <div class="step-desc">${t('step2Desc')}</div>
-                </div>
-              </div>
-              <div class="step-item">
-                <div class="step-num">3</div>
-                <div class="step-content">
-                  <div class="step-title">${t('step3Title')}</div>
-                  <div class="step-desc">${t('step3Desc')}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="section-divider">${t('sectionShipping')}</div>
-          <div class="state-card" style="margin-top:0;">
-            <div class="info-list">
-              <div class="info-item">
-                <span class="info-icon">📦</span>
-                <span class="info-label">${t('infoRecipient')}</span>
-                <span class="info-value">${recipient}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-icon">📍</span>
-                <span class="info-label">${t('infoAddress')}</span>
-                <span class="info-value">${detail}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-icon">📞</span>
-                <span class="info-label">${t('infoPhone')}</span>
-                <span class="info-value">${dialCode} ${phone}</span>
-              </div>
-            </div>
-            <div style="margin-top:14px; text-align:center;">
-              <button class="text-link-btn" onclick="editAddressFromRegistered()">${t('editAddressBtn')}</button>
-              <span style="font-size:13px; color:var(--muted);">${t('editDeadline', { date: deadlineDate })}</span>
-            </div>
-          </div>
-
-          <div class="section-divider">${t('sectionAttendance')}</div>
-          <div class="state-card" style="margin-top:0;">
-            <div class="info-list">
-              <div class="info-item">
-                <span class="info-icon">🎫</span>
-                <span class="info-value">${t('attendanceTicket')}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-icon">🎁</span>
-                <span class="info-value">${t('attendanceGift')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderStateEnded() {
-      return `
-        <div class="content" style="padding-top:48px;">
-          <div class="state-card review-card">
-            <div class="big-emoji">🎉</div>
-            <h2>${t('endedTitle')}</h2>
-            <p>${t('endedDesc')}</p>
-          </div>
-          <div class="state-card">
-            <div class="state-title">${t('surveyTitle')}</div>
-            <div class="state-desc">${t('surveyDesc')}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderCta(snapshot) {
-      const status = assetTierStatus(snapshot.assetWan);
-      const isRegisterState = snapshot.stateCode === STATE.ACCOUNT_NOT_QUALIFIED;
-      let cfg;
-
-      if (snapshot.stateCode === STATE.GUEST) {
-        cfg = { text: t('ctaLogin'), note: t('ctaNoteLogin'), action: () => showToast(t('toastLogin')) };
-      } else if (snapshot.stateCode === STATE.LOGGED_IN_NO_ACCOUNT) {
-        cfg = { text: t('ctaOpenAccount'), note: t('ctaNoteOpenAccount'), action: () => showToast(t('toastOpenAccount')) };
-      } else if (snapshot.stateCode === STATE.ACCOUNT_NOT_QUALIFIED && status.level === 'none') {
-        cfg = { text: t('ctaDeposit'), note: t('ctaNoteDeposit'), action: () => showToast(t('toastDeposit')) };
-      } else if (isRegisterState && current.view === 'events') {
-        cfg = { text: t('ctaAddress'), note: t('ctaNoteAddress'), action: goToAddressPage };
-      } else if (isRegisterState && current.view === 'address') {
-        cfg = { text: t('ctaSubmit'), note: t('ctaNoteSubmit'), action: submitAddress, showCancel: false };
-      } else if (snapshot.stateCode === STATE.REGISTERED && current.view === 'address') {
-        cfg = { text: t('ctaSave'), note: t('ctaNoteSave'), action: submitAddress, showCancel: true };
-      } else if (snapshot.stateCode === STATE.REGISTERED) {
-        cfg = { text: '', note: '', action: null, showCancel: false };
-      } else if (snapshot.stateCode === STATE.ENDED) {
-        cfg = { text: '', note: '', action: null, showCancel: false };
-      }
-
-      const ctaBar = document.getElementById('ctaBar');
-
-      if ((snapshot.stateCode === STATE.REGISTERED || snapshot.stateCode === STATE.ENDED) && current.view !== 'address') {
-        ctaBar.classList.add('hidden');
-        page.style.paddingBottom = '24px';
-      } else {
-        ctaBar.classList.remove('hidden');
-        page.style.paddingBottom = '100px';
-      }
-
-      mainCta.textContent = cfg.text;
-      ctaNote.textContent = cfg.note;
-      mainCta.disabled = false;
-      mainCta.onclick = cfg.action;
-
-      if (cfg.showCancel) {
-        cancelCta.classList.remove('hidden');
-        cancelCta.textContent = t('ctaCancel');
-        cancelCta.onclick = cancelAddressEdit;
-      } else {
-        cancelCta.classList.add('hidden');
-        cancelCta.onclick = null;
-      }
-
-      if (isRegisterState && current.view === 'events' && status.level !== 'none' && (!current.selectedEventId || !current.selectedTicket)) {
-        mainCta.disabled = true;
-        ctaNote.textContent = t('ctaNoteSelectFirst');
-      }
-    }
-
-    function goToAddressPage() {
-      if (!current.selectedEventId || !current.selectedTicket) {
-        showToast(t('toastSelectFirst'));
-        return;
-      }
-      current.view = 'address';
-      render();
-    }
-
-    function clearFieldErrors() {
-      const fields = ['addrRecipient', 'addrCountry', 'addrDetail', 'addrPhone'];
-      fields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('error');
-        const err = document.getElementById(id + 'Error');
-        if (err) err.textContent = '';
-      });
-    }
-
-    function setFieldError(id, msg) {
-      const el = document.getElementById(id);
-      if (el) el.classList.add('error');
-      const err = document.getElementById(id + 'Error');
-      if (err) err.textContent = msg;
-    }
-
-    function validateAddressForm() {
-      clearFieldErrors();
-      let isValid = true;
-      let firstErrorId = null;
-
-      const recipient = document.getElementById('addrRecipient').value.trim();
-      const detail = document.getElementById('addrDetail').value.trim();
-      const phone = document.getElementById('addrPhone').value.trim();
-
-      if (!recipient) {
-        setFieldError('addrRecipient', t('errorRecipient'));
-        isValid = false;
-        if (!firstErrorId) firstErrorId = 'addrRecipient';
-      }
-
-      if (!detail) {
-        setFieldError('addrDetail', t('errorAddress'));
-        isValid = false;
-        if (!firstErrorId) firstErrorId = 'addrDetail';
-      }
-
-      if (!phone) {
-        setFieldError('addrPhone', t('errorPhone'));
-        isValid = false;
-        if (!firstErrorId) firstErrorId = 'addrPhone';
-      }
-
-      if (firstErrorId) {
-        const el = document.getElementById(firstErrorId);
-        if (el) el.focus();
-      }
-
-      return isValid ? { recipient, detail, phone } : null;
-    }
-
-    function submitAddress() {
-      const isEditMode = current.stateCode === STATE.REGISTERED;
-      if (!isEditMode && (!current.selectedEventId || !current.selectedTicket)) {
-        showToast(t('toastSelectFirst'));
-        return;
-      }
-
-      const validated = validateAddressForm();
-      if (!validated) return;
-
-      const country = document.getElementById('addrCountry').value;
-      const dialCode = document.getElementById('addrDialCode').value;
-
-      current.address = { recipient: validated.recipient, country, detail: validated.detail, dialCode, phone: validated.phone };
-      current.view = 'events';
-
-      if (isEditMode) {
-        showToast(t('toastSaveSuccess'));
-      } else {
-        current.stateCode = STATE.REGISTERED;
-        stateSelect.value = String(STATE.REGISTERED);
-        showToast(t('toastRegisterSuccess'));
-      }
-      render();
-    }
-
-    // 全局暴露给内联 onclick
-    window.goBackToEvents = goBackToEvents;
-    window.goBackFromAddress = goBackFromAddress;
-    window.editAddressFromRegistered = editAddressFromRegistered;
-    window.cancelAddressEdit = cancelAddressEdit;
-    window.clearFieldErrors = clearFieldErrors;
-    window.onCountryChange = onCountryChange;
-    window.autoFillAddress = autoFillAddress;
-    window.selectEvent = function(id) {
-      if (current.stateCode !== STATE.ACCOUNT_NOT_QUALIFIED) return;
-      const ev = EVENTS.find(e => e.id === id);
-      if (ev.weeksAway <= 3) return;
-      current.selectedEventId = id;
-      current.selectedTicket = null;
-      render();
-    };
-    window.selectTicket = function(eventId, ticketKey) {
-      if (current.stateCode !== STATE.ACCOUNT_NOT_QUALIFIED) return;
-      if (!canSelectTicket(ticketKey, current.assetWan)) return;
-      const ev = EVENTS.find(e => e.id === eventId);
-      if (ev[`${ticketKey}Stock`] <= 0) return;
-      current.selectedEventId = eventId;
-      current.selectedTicket = ticketKey;
-      render();
-    };
-
-    function render() {
-      // 已开户且未报名状态，按账户总资产自动判定用户档位
-      if (current.stateCode === STATE.ACCOUNT_NOT_QUALIFIED || current.stateCode === STATE.QUALIFIED_NOT_REGISTERED) {
-        current.tier = current.assetWan >= 100 ? TIER.VIP : TIER.STANDARD;
-      }
-
-      document.title = t('pageTitle');
-      const snapshot = buildStateSnapshot(current.stateCode, current.tier, current.assetWan);
-
-      // 更新控制台读数
-      const status = assetTierStatus(snapshot.assetWan);
-      assetValue.textContent = fmtMoneyFull(snapshot.assetWan);
-      const stateName = stateSelect.options[stateSelect.selectedIndex].text.split(' ')[1];
-      const tierLabel = snapshot.tier === TIER.VIP ? 'VIP 档客户' : '标准档客户';
-      let qualifiedMark;
-      if (status.level === 'none') qualifiedMark = '❌ 未达标标准档';
-      else if (status.level === 'standard') qualifiedMark = '✅ 已达到标准档，未达标 VIP 档';
-      else qualifiedMark = '✅ 已达到 VIP 档';
-      stateReadout.innerHTML = `<strong>${stateName}</strong><br>用户层级：${tierLabel}<br>${qualifiedMark}<br>标准档门槛：HKD 100,000.00<br>VIP 档门槛：HKD 1,000,000.00`;
-
-      // 渲染页面主体
-      let body = '';
-      switch (snapshot.stateCode) {
-        case STATE.GUEST: body = renderStateGuest(); break;
-        case STATE.LOGGED_IN_NO_ACCOUNT: body = renderStateLoggedInNoAccount(snapshot); break;
-        case STATE.ACCOUNT_NOT_QUALIFIED:
-          body = current.view === 'address' ? renderAddressPage(snapshot) : renderStateNotQualified(snapshot);
-          break;
-        case STATE.QUALIFIED_NOT_REGISTERED:
-          // 该状态已从控制台移除，保留兼容旧状态码
-          body = current.view === 'address' ? renderAddressPage(snapshot) : renderStateQualified(snapshot);
-          break;
-        case STATE.REGISTERED:
-          body = current.view === 'address' ? renderAddressPage(snapshot) : renderStateRegistered(snapshot);
-          break;
-        case STATE.ENDED: body = renderStateEnded(); break;
-      }
-      page.innerHTML = current.view === 'address' ? body : renderHeader() + body;
-
-      renderCta(snapshot);
-    }
-
-    // 控件事件
-    stateSelect.addEventListener('change', e => {
-      current.stateCode = parseInt(e.target.value, 10);
-      current.view = 'events';
-      render();
+// == 主渲染 ==
+function renderMain(){
+  $('#page-address').hidden = true;
+  $('#page-main').hidden = false;
+  let html = '';
+  if (scene === '0') html = pageGuest();
+  else if (scene === '1') html = pageNoAccount();
+  else if (scene === '2-old') html = pageOpenedOld();
+  else if (scene === '2-progress' || scene === '2-standard' || scene === '2-vip') html = pageOpened(QUAL[scene]);
+  else if (scene === '4') html = pageBooked();
+  else if (scene === '5') html = pageEnded();
+  $('#app').innerHTML = html;
+  bindMain();
+  window.scrollTo(0, 0);
+}
+function bindMain(){
+  // 演示占位按钮
+  ['cta-login', 'cta-open', 'cta-deposit', 'cta-survey'].forEach(id => {
+    const b = $('#' + id);
+    if (b) b.addEventListener('click', demoToast);
+  });
+  // 票档卡点击：可报名 → 地址页；置灰 → toast 原因
+  document.querySelectorAll('.tier').forEach(el => {
+    el.addEventListener('click', () => {
+      if (el.dataset.enabled === '1') openAddress('register', el.dataset.tier);
+      else toast(el.dataset.lock || '当前不可报名');
     });
+  });
+  // 已达标进度卡点击 → 地址页（与票档卡等效入口）
+  document.querySelectorAll('.pg-tier.unlocked').forEach(el => {
+    el.addEventListener('click', () => openAddress('register', el.dataset.pgtier));
+  });
+  // 已报名页：修改收件信息
+  const edit = $('#edit-addr');
+  if (edit) edit.addEventListener('click', () => openAddress('edit', currentReg().ticket_type));
+}
 
-    assetRange.addEventListener('input', e => {
-      current.assetWan = parseInt(e.target.value, 10);
-      render();
-    });
+// == 地址页 ==
+function openAddress(mode, tier){
+  addressMode = mode;
+  selectedTier = tier;
+  $('#page-main').hidden = true;
+  $('#page-address').hidden = false;
+  $('#addr-title').textContent = mode === 'edit' ? '修改收件信息' : '填写寄票地址';
+  renderAddressForm();
+  window.scrollTo(0, 0);
+}
+function closeAddress(){
+  $('#page-address').hidden = true;
+  $('#page-main').hidden = false;
+  window.scrollTo(0, 0);
+}
+function renderAddressForm(){
+  const t = TIERS[selectedTier];
+  const reg = addressMode === 'edit' ? currentReg() : { name: '', region: '', address: '', phone_code: '+852', phone: '' };
+  const regions = ['中国大陆', '中国香港', '中国澳门', '中国台湾', '新加坡', '其他'];
+  const codes = ['+86', '+852', '+853', '+886', '+65'];
+  $('#addr-body').innerHTML = `
+    <div class="summary-strip">已选 <b>${EVENT.artist} · ${EVENT.date} · ${EVENT.venue}</b><br>${t.name} · ${t.price}</div>
+    <div class="field" id="fw-name">
+      <label>收件人姓名 *</label>
+      <input id="f-name" type="text" placeholder="请输入收件人姓名" value="${esc(reg.name)}">
+      <div class="msg">请输入收件人姓名</div>
+    </div>
+    <div class="field" id="fw-region">
+      <label>国家 / 地区 *</label>
+      <select id="f-region">
+        <option value="">请选择</option>
+        ${regions.map(r => `<option${r === reg.region ? ' selected' : ''}>${r}</option>`).join('')}
+      </select>
+      <div class="msg">请选择国家 / 地区</div>
+    </div>
+    <div class="field" id="fw-addr">
+      <label>详细地址 *</label>
+      <textarea id="f-addr" placeholder="请输入详细地址">${esc(reg.address)}</textarea>
+      <div class="msg">详细地址不能为空</div>
+    </div>
+    <div class="field" id="fw-phone">
+      <label>联系电话 *</label>
+      <div class="phone-row">
+        <select id="f-code">${codes.map(c => `<option${c === reg.phone_code ? ' selected' : ''}>${c}</option>`).join('')}</select>
+        <input id="f-phone" type="tel" placeholder="请输入手机号码" value="${esc(reg.phone)}">
+      </div>
+      <div class="msg">请输入手机号码</div>
+    </div>
+    <div class="addr-actions">
+      ${addressMode === 'edit'
+        ? '<div class="row"><button class="cta secondary" id="addr-cancel" style="flex:1">取消</button><button class="cta" id="addr-submit" style="flex:2">保存</button></div><div class="hint">保存后将更新收件信息</div>'
+        : '<button class="cta" id="addr-submit">确认提交</button><div class="hint">提交后将锁定名额</div>'}
+    </div>`;
+  // 输入时清除错误态
+  ['f-name', 'f-region', 'f-addr', 'f-phone'].forEach(id => {
+    $('#' + id).addEventListener('input', e => e.target.closest('.field').classList.remove('err'));
+  });
+  const cancel = $('#addr-cancel');
+  if (cancel) cancel.addEventListener('click', closeAddress);
+  $('#addr-submit').addEventListener('click', submitAddress);
+}
+function submitAddress(){
+  const checks = [
+    { wrap: 'fw-name',  ok: $('#f-name').value.trim() !== '',  focus: 'f-name' },
+    { wrap: 'fw-region', ok: $('#f-region').value !== '',      focus: 'f-region' },
+    { wrap: 'fw-addr',  ok: $('#f-addr').value.trim() !== '',  focus: 'f-addr' },
+    { wrap: 'fw-phone', ok: $('#f-phone').value.trim() !== '', focus: 'f-phone' }
+  ];
+  let firstBad = null;
+  checks.forEach(c => {
+    $('#' + c.wrap).classList.toggle('err', !c.ok);
+    if (!c.ok && !firstBad) firstBad = c.focus;
+  });
+  if (firstBad){ $('#' + firstBad).focus(); return; }
+  const data = {
+    ticket_type: selectedTier,
+    name: $('#f-name').value.trim(),
+    region: $('#f-region').value,
+    address: $('#f-addr').value.trim(),
+    phone_code: $('#f-code').value,
+    phone: $('#f-phone').value.trim()
+  };
+  if (addressMode === 'edit'){
+    registration = data;
+    closeAddress();
+    renderMain();
+    toast('收件信息已保存');
+  } else {
+    registration = data;
+    STOCK[selectedTier + '_used'] += 1;   // mock 扣减库存
+    scene = '4';
+    renderDemoBar();                      // demo 栏同步切到「状态 4 · 已报名」
+    closeAddress();
+    renderMain();
+    toast('报名成功');
+  }
+}
 
-    // 键盘快捷键：← → 切换状态（跳过已移除的 3）
-    document.addEventListener('keydown', e => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-      if (e.key === 'ArrowLeft') {
-        current.stateCode = Math.max(0, current.stateCode - 1);
-        if (current.stateCode === 3) current.stateCode = 2;
-        stateSelect.value = String(current.stateCode);
-        render();
-      } else if (e.key === 'ArrowRight') {
-        current.stateCode = Math.min(5, current.stateCode + 1);
-        if (current.stateCode === 3) current.stateCode = 4;
-        stateSelect.value = String(current.stateCode);
-        render();
-      }
-    });
-
-    // 初始化
-    document.documentElement.lang = currentLang;
-    render();
-  </script>
+// == 启动 ==
+$('#addr-back').addEventListener('click', closeAddress);
+renderDemoBar();
+renderMain();
+</script>
 </body>
 </html>
