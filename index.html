@@ -131,9 +131,10 @@ body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang S
 <script>
 'use strict';
 /* ============================================================
- * Demo：云锋有鱼「盛夏焕新 · 港乐星夜」限时优享计划 H5（v2）
- * 依据 docs/superpowers/specs/2026-07-17--design-v2.md 实现
- * 仅简体中文；数据为前端 mock，模拟 status + qualification 接口
+ * Demo：云锋有鱼「盛夏焕新 · 港乐星夜」限时优享计划 H5（v2.1）
+ * 依据 docs/superpowers/specs/2026-07-17--design-v2-zh-CN.md 实现
+ * 仅简体中文；数据为前端 mock，模拟 status + qualification + activity_phase 接口
+ * v2.1：新增全局活动阶段「售罄 / 已过报名截止」叠加设计（设计文档 4.6 节）
  * ============================================================ */
 
 // == 基础工具 ==
@@ -162,16 +163,20 @@ const TIERS = {
   vip:      { name: 'VIP 档', price: '票面 HKD 1,888',    cond: '单日净入资 ≥ 100 万 HKD · 连续 30 天总资产 ≥ 100 万' },
   standard: { name: '标准档', price: '票面 HKD 888–999',  cond: '单日净入资 ≥ 10 万 HKD · 连续 30 天总资产 ≥ 10 万' }
 };
-// GET /api/concert/status mock：8 个演示场景
+// GET /api/concert/status mock：10 个演示场景
+// activity_phase 全局活动阶段（v2.1 新增）：not_started / open / closed / ended
 const SCENARIOS = [
-  { id: '0',          label: '状态 0 · 访客（未登录）' },
-  { id: '1',          label: '状态 1 · 已登录未开户' },
-  { id: '2-old',      label: '状态 2 · 老客（8/1 前开户）' },
-  { id: '2-progress', label: '状态 2 · 新客未达标' },
-  { id: '2-standard', label: '状态 2 · 已达标标准档' },
-  { id: '2-vip',      label: '状态 2 · 已达标 VIP 档' },
-  { id: '4',          label: '状态 4 · 已报名' },
-  { id: '5',          label: '状态 5 · 已结束' }
+  { id: '0',          label: '状态 0 · 访客（未登录）',        activity_phase: 'open' },
+  { id: '1',          label: '状态 1 · 已登录未开户',          activity_phase: 'open' },
+  { id: '2-old',      label: '状态 2 · 老客（8/1 前开户）',    activity_phase: 'open' },
+  { id: '2-progress', label: '状态 2 · 新客未达标',            activity_phase: 'open' },
+  { id: '2-standard', label: '状态 2 · 已达标标准档',          activity_phase: 'open' },
+  { id: '2-vip',      label: '状态 2 · 已达标 VIP 档',         activity_phase: 'open' },
+  { id: '2-soldout',  label: '状态 2 · 已达标 · 全部售罄',     activity_phase: 'open',
+    stock: { vip_total: 10, vip_used: 10, standard_total: 15, standard_used: 15 } },
+  { id: '2-closed',   label: '状态 2 · 已达标 · 已过报名截止', activity_phase: 'closed' },
+  { id: '4',          label: '状态 4 · 已报名',                activity_phase: 'open' },
+  { id: '5',          label: '状态 5 · 已结束',                activity_phase: 'open' }
 ];
 const QUAL = {
   '2-old':      { is_new_customer: false },
@@ -191,6 +196,9 @@ const QUAL = {
     vip:      { net_inflow_qualified: true,  net_inflow_gap: 0,      holding_days: 30, qualified: true }
   }
 };
+// v2.1：「全部售罄」「已过报名截止」场景的资格数据复用「已达标标准档」
+QUAL['2-soldout'] = QUAL['2-standard'];
+QUAL['2-closed']  = QUAL['2-standard'];
 const DEFAULT_REG = {
   ticket_type: 'standard', name: '张三', region: '中国香港',
   address: '九龙尖沙咀弥敦道 100 号 8 楼 801 室', phone_code: '+852', phone: '9123 4567'
@@ -239,13 +247,25 @@ function rulesPanel(){
     </ol>
   </div></div>`;
 }
+// v2.1 全局阶段 mock 取值：当前场景的 activity_phase 与库存（场景未覆盖库存时用默认 STOCK）
+const curScenario  = () => SCENARIOS.find(s => s.id === scene) || {};
+const activityPhase = () => curScenario().activity_phase || 'open';
+const tierStock = tier => {
+  const st = curScenario().stock || STOCK;
+  return { total: st[tier + '_total'], used: st[tier + '_used'] };
+};
+const tierRemaining = tier => { const s = tierStock(tier); return s.total - s.used; };
+const allSoldOut = () => tierRemaining('vip') <= 0 && tierRemaining('standard') <= 0;
 function stockLine(tier){
-  const total = STOCK[tier + '_total'], used = STOCK[tier + '_used'];
-  return `剩余 ${total - used} / ${total}`;
+  const s = tierStock(tier), left = s.total - s.used;
+  return left <= 0 ? '剩余 0 张' : `剩余 ${left} / ${s.total}`;
 }
 // 票档卡：enabled=true 时可点击报名；否则展示 lockText
+// v2.1 禁用原因优先级（同时命中只显示一个）：报名已截止 > 已售罄 > 仅限新客 > 未达标
 function tierCard(tier, enabled, lockText){
   const t = TIERS[tier];
+  if (activityPhase() === 'closed'){ enabled = false; lockText = '报名已截止'; }
+  else if (tierRemaining(tier) <= 0){ enabled = false; lockText = '已售罄'; }
   return `<div class="tier ${tier} ${enabled ? 'enabled' : 'disabled'}" data-tier="${tier}" data-enabled="${enabled ? 1 : 0}" data-lock="${esc(lockText || '')}">
     <div class="tier-top">
       <span class="tier-name">${t.name}</span>
@@ -256,8 +276,16 @@ function tierCard(tier, enabled, lockText){
     ${enabled ? '<div class="tier-cta">点击报名 ›</div>' : (lockText ? `<div class="tier-lock">🔒 ${lockText}</div>` : '')}
   </div>`;
 }
+// v2.1 全局阶段提示卡：已过报名截止 / 全部售罄（状态 0/1/2 未报名页展示于场次卡上方；无 CTA、无候补入口）
+function phaseNotice(){
+  if (activityPhase() === 'closed')
+    return `<div class="section"><div class="status-card"><h3>报名已于 2026年9月5日 截止</h3></div></div>`;
+  if (allSoldOut())
+    return `<div class="section"><div class="status-card"><h3>本场次名额已全部报满，感谢关注</h3></div></div>`;
+  return '';
+}
 function eventCard(tierHtml){
-  return `<div class="section"><div class="card">
+  return `${phaseNotice()}<div class="section"><div class="card">
     <div class="event-head">
       <div>
         <div class="event-artist">${EVENT.artist}</div>
@@ -326,14 +354,16 @@ function pageOpenedOld(){
     + rulesPanel();
 }
 function pageOpened(qual){
+  const closed = activityPhase() === 'closed';
   const stdOk = qual.standard.qualified, vipOk = qual.vip.qualified;
-  let html = kv() + qualCards(qual);
+  let html = kv();
+  if (!closed) html += qualCards(qual);   // v2.1：过截止后不再展示资格进度卡（截止后达标无意义）
   html += eventCard(
     tierCard('vip', vipOk, vipOk ? '' : '未达标')
     + tierCard('standard', stdOk || vipOk, (stdOk || vipOk) ? '' : '达标后可选')
   );
   html += rulesPanel();
-  if (!vipOk) html += ctaBar('继续入金', 'cta-deposit');
+  if (!vipOk && !closed && !allSoldOut()) html += ctaBar('继续入金', 'cta-deposit');   // v2.1：过截止 / 全部售罄时无 CTA
   return html;
 }
 function pageBooked(){
@@ -366,7 +396,7 @@ function pageBooked(){
         <div class="info-row"><span class="k">收件人</span><span class="v">${esc(reg.name)}</span></div>
         <div class="info-row"><span class="k">地址</span><span class="v">${esc(reg.region)} ${esc(reg.address)}</span></div>
         <div class="info-row"><span class="k">电话</span><span class="v">${esc(reg.phone_code)} ${esc(reg.phone)}</span></div>
-        <div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（报名截止日前可修改）</span></div>
+        ${activityPhase() === 'closed' ? '' : '<div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（报名截止日前可修改）</span></div>'}
       </div>
       <div class="card">
         <div class="sec-title">到场须知</div>
@@ -398,7 +428,7 @@ function renderMain(){
   if (scene === '0') html = pageGuest();
   else if (scene === '1') html = pageNoAccount();
   else if (scene === '2-old') html = pageOpenedOld();
-  else if (scene === '2-progress' || scene === '2-standard' || scene === '2-vip') html = pageOpened(QUAL[scene]);
+  else if (scene === '2-progress' || scene === '2-standard' || scene === '2-vip' || scene === '2-soldout' || scene === '2-closed') html = pageOpened(QUAL[scene]);
   else if (scene === '4') html = pageBooked();
   else if (scene === '5') html = pageEnded();
   $('#app').innerHTML = html;
@@ -418,9 +448,13 @@ function bindMain(){
       else toast(el.dataset.lock || '当前不可报名');
     });
   });
-  // 已达标进度卡点击 → 地址页（与票档卡等效入口）
+  // 已达标进度卡点击 → 地址页（与票档卡等效入口；v2.1：过截止 / 已售罄时拦截）
   document.querySelectorAll('.pg-tier.unlocked').forEach(el => {
-    el.addEventListener('click', () => openAddress('register', el.dataset.pgtier));
+    el.addEventListener('click', () => {
+      if (activityPhase() === 'closed') return toast('报名已截止');
+      if (tierRemaining(el.dataset.pgtier) <= 0) return toast('已售罄');
+      openAddress('register', el.dataset.pgtier);
+    });
   });
   // 已报名页：修改收件信息
   const edit = $('#edit-addr');
