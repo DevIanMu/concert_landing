@@ -77,7 +77,7 @@ body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang S
 .rules ol{padding-left:18px;font-size:13px;color:var(--ink2)}
 .rules li{margin-bottom:8px}
 .rules b{color:var(--ink)}
-/* ===== 已报名页 ===== */
+/* ===== 已领票页 ===== */
 .success-hero{text-align:center;padding:22px 10px 14px}
 .success-hero .check{width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
 .step{display:flex;gap:12px;margin-top:14px}
@@ -134,7 +134,7 @@ body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang S
  * Demo：云锋有鱼「盛夏焕新 · 港乐星夜」限时优享计划 H5（v2.1）
  * 依据 docs/superpowers/specs/2026-07-17--design-v2-zh-CN.md 实现
  * 仅简体中文；数据为前端 mock，模拟 status + qualification + activity_phase 接口
- * v2.1：新增全局活动阶段「售罄 / 已过报名截止」叠加设计（设计文档 4.6 节）
+ * v2.1：新增全局活动阶段「售罄 / 已过领票截止」叠加设计（设计文档 4.6 节）
  * ============================================================ */
 
 // == 基础工具 ==
@@ -156,7 +156,7 @@ const EVENT = {
   artist: '郑允浩（U-Know Yunho）',
   date: '2026-09-26',
   venue: 'Dreamland',
-  deadline: '2026-09-05'
+  deadline: '2026-09-16'
 };
 const STOCK = { vip_total: 10, vip_used: 3, standard_total: 15, standard_used: 6 };
 const TIERS = {
@@ -168,14 +168,14 @@ const TIERS = {
 const SCENARIOS = [
   { id: '0',          label: '状态 0 · 访客（未登录）',        activity_phase: 'open' },
   { id: '1',          label: '状态 1 · 已登录未开户',          activity_phase: 'open' },
-  { id: '2-old',      label: '状态 2 · 老客（8/1 前开户）',    activity_phase: 'open' },
+  { id: '2-old',      label: '状态 2 · 老客（7/1 前开户）',    activity_phase: 'open' },
   { id: '2-progress', label: '状态 2 · 新客未达标',            activity_phase: 'open' },
   { id: '2-standard', label: '状态 2 · 已达标标准档',          activity_phase: 'open' },
   { id: '2-vip',      label: '状态 2 · 已达标 VIP 档',         activity_phase: 'open' },
   { id: '2-soldout',  label: '状态 2 · 已达标 · 全部售罄',     activity_phase: 'open',
     stock: { vip_total: 10, vip_used: 10, standard_total: 15, standard_used: 15 } },
-  { id: '2-closed',   label: '状态 2 · 已达标 · 已过报名截止', activity_phase: 'closed' },
-  { id: '4',          label: '状态 4 · 已报名',                activity_phase: 'open' },
+  { id: '2-closed',   label: '状态 2 · 已达标 · 已过领票截止', activity_phase: 'closed' },
+  { id: '4',          label: '状态 4 · 已领票',                activity_phase: 'open' },
   { id: '5',          label: '状态 5 · 已结束',                activity_phase: 'open' }
 ];
 const QUAL = {
@@ -196,7 +196,7 @@ const QUAL = {
     vip:      { net_inflow_qualified: true,  net_inflow_gap: 0,      holding_days: 30, qualified: true }
   }
 };
-// v2.1：「全部售罄」「已过报名截止」场景的资格数据复用「已达标标准档」
+// v2.1：「全部售罄」「已过领票截止」场景的资格数据复用「已达标标准档」
 QUAL['2-soldout'] = QUAL['2-standard'];
 QUAL['2-closed']  = QUAL['2-standard'];
 const DEFAULT_REG = {
@@ -206,7 +206,7 @@ const DEFAULT_REG = {
 
 // == 运行时状态 ==
 let scene = '0';                 // 当前演示场景
-let registration = null;         // 报名成功后写入 {ticket_type, name, region, address, phone_code, phone}
+let registration = null;         // 领票成功后写入 {ticket_type, name, region, address, phone_code, phone}
 let selectedTier = null;         // 地址页所选手档 'vip' | 'standard'
 let addressMode = 'register';    // 'register' | 'edit'
 const currentReg = () => registration || DEFAULT_REG;
@@ -231,19 +231,19 @@ function kv(){
     <div class="kv-logo">云锋 <span class="cross">×</span> OFFGRID</div>
     <h1>盛夏焕新 · 港乐星夜</h1>
     <p>${EVENT.artist} · ${EVENT.date} · ${EVENT.venue}</p>
-    <p>新客专享 · 双档门票权益 · 报名截止 ${EVENT.deadline}</p>
+    <p>新客专享 · 双档门票权益 · 领票截止 ${EVENT.deadline}</p>
   </div>`;
 }
 function rulesPanel(){
   return `<div class="section"><div class="card rules">
     <div class="sec-title">活动规则</div>
     <ol>
-      <li>活动仅限 2026 年 8 月 1 日起完成开户的客户参与，每人限报名 1 张，名额先到先得，报完即止。</li>
+      <li>活动仅限 2026 年 7 月 1 日起完成开户的客户参与，每人限领票 1 张，名额先到先得，领完即止。</li>
       <li>标准档：活动期间单日净入资 ≥ 10 万 HKD（含现金及股票转仓），且连续 30 个自然日账户总资产 ≥ 10 万 HKD。</li>
       <li>VIP 档：活动期间单日净入资 ≥ 100 万 HKD（含现金及股票转仓），且连续 30 个自然日账户总资产 ≥ 100 万 HKD；VIP 档客户可降级选择标准档。</li>
-      <li>报名成功后，工作人员将于寄票前核实您自开户日起的活动期间交易手数（标准档 ≥ 5 手，VIP 档 ≥ 10 手，全市场交易合计）。核实通过后，门票将于演出前 7-10 天寄出，寄出时您将收到邮件通知。</li>
-      <li><b>若交易手数未满足上述要求，将不予寄票</b>，核实结果将以邮件通知。</li>
-      <li>收件信息可于报名截止日（2026-09-05）前修改。</li>
+      <li>连续持有天数自单日净入资达标的次日（T+1）开始计算：如 7 月 1 日净入资达标，7 月 2 日持有进度显示 0/30 天，7 月 3 日显示 1/30 天。</li>
+      <li>最晚须于 2026 年 8 月 16 日完成单日净入资达标，方可在领票截止日（9 月 16 日）前完成连续 30 天持有。</li>
+      <li>收件信息可于领票截止日（2026-09-16）前修改。</li>
     </ol>
   </div></div>`;
 }
@@ -260,11 +260,11 @@ function stockLine(tier){
   const s = tierStock(tier), left = s.total - s.used;
   return left <= 0 ? '剩余 0 张' : `剩余 ${left} / ${s.total}`;
 }
-// 票档卡：enabled=true 时可点击报名；否则展示 lockText
-// v2.1 禁用原因优先级（同时命中只显示一个）：报名已截止 > 已售罄 > 仅限新客 > 未达标
+// 票档卡：enabled=true 时可点击领票；否则展示 lockText
+// v2.1 禁用原因优先级（同时命中只显示一个）：领票已截止 > 已售罄 > 仅限新客 > 未达标
 function tierCard(tier, enabled, lockText){
   const t = TIERS[tier];
-  if (activityPhase() === 'closed'){ enabled = false; lockText = '报名已截止'; }
+  if (activityPhase() === 'closed'){ enabled = false; lockText = '领票已截止'; }
   else if (tierRemaining(tier) <= 0){ enabled = false; lockText = '已售罄'; }
   return `<div class="tier ${tier} ${enabled ? 'enabled' : 'disabled'}" data-tier="${tier}" data-enabled="${enabled ? 1 : 0}" data-lock="${esc(lockText || '')}">
     <div class="tier-top">
@@ -273,13 +273,13 @@ function tierCard(tier, enabled, lockText){
     </div>
     <div class="tier-sub">${t.cond}</div>
     <div class="tier-stock">${stockLine(tier)} · 先到先得</div>
-    ${enabled ? '<div class="tier-cta">点击报名 ›</div>' : (lockText ? `<div class="tier-lock">🔒 ${lockText}</div>` : '')}
+    ${enabled ? '<div class="tier-cta">点击领票 ›</div>' : (lockText ? `<div class="tier-lock">🔒 ${lockText}</div>` : '')}
   </div>`;
 }
-// v2.1 全局阶段提示卡：已过报名截止 / 全部售罄（状态 0/1/2 未报名页展示于场次卡上方；无 CTA、无候补入口）
+// v2.1 全局阶段提示卡：已过领票截止 / 全部售罄（状态 0/1/2 未领票页展示于场次卡上方；无 CTA、无候补入口）
 function phaseNotice(){
   if (activityPhase() === 'closed')
-    return `<div class="section"><div class="status-card"><h3>报名已于 2026年9月5日 截止</h3></div></div>`;
+    return `<div class="section"><div class="status-card"><h3>领票已于 2026年9月16日 截止</h3></div></div>`;
   if (allSoldOut())
     return `<div class="section"><div class="status-card"><h3>本场次名额已全部报满，感谢关注</h3></div></div>`;
   return '';
@@ -291,7 +291,7 @@ function eventCard(tierHtml){
         <div class="event-artist">${EVENT.artist}</div>
         <div class="event-meta">${EVENT.date} · ${EVENT.venue}</div>
       </div>
-      <div class="deadline-tag">报名截止<br>${EVENT.deadline}</div>
+      <div class="deadline-tag">领票截止<br>${EVENT.deadline}</div>
     </div>
     ${tierHtml}
   </div></div>`;
@@ -308,7 +308,7 @@ function qualCards(qual){
       ? '<span class="ok">✅ 已达标</span>'
       : `<span class="gap">还差 HKD ${fmt(q.net_inflow_gap)}</span>`;
     const badge = q.qualified
-      ? '<span class="pg-badge">可报名</span>'
+      ? '<span class="pg-badge">可领票</span>'
       : '<span class="pg-badge grey">未达标</span>';
     const hint = (tier === 'vip' && !q.qualified && qual.standard.qualified)
       ? '<div class="pg-hint">继续提升资产可解锁 VIP 档</div>' : '';
@@ -321,24 +321,25 @@ function qualCards(qual){
     </div>`;
   };
   return `<div class="section"><div class="card">
-    <div class="sec-title">我的报名资格</div>
+    <div class="sec-title">我的领票资格</div>
     ${one('standard', qual.standard)}
     ${one('vip', qual.vip)}
+    <div class="pg-hint">最晚 8 月 16 日完成单日净入资达标，才能在 9 月 16 日截止前完成 30 天持有</div>
   </div></div>`;
 }
 
 // == 各状态页面 ==
 function pageGuest(){
   return kv()
-    + eventCard(tierCard('vip', false, '登录后可报名') + tierCard('standard', false, '登录后可报名'))
+    + eventCard(tierCard('vip', false, '登录后可领票') + tierCard('standard', false, '登录后可领票'))
     + rulesPanel()
     + ctaBar('登录 / 注册', 'cta-login');
 }
 function pageNoAccount(){
   return kv()
     + `<div class="section"><div class="status-card">
-        <h3>您尚未完成开户，无法报名</h3>
-        <div class="muted">完成开户并达到对应档位要求后，即可报名领取门票权益。</div>
+        <h3>您尚未完成开户，无法领票</h3>
+        <div class="muted">完成开户并达到对应档位要求后，即可领取门票权益。</div>
       </div></div>`
     + eventCard(tierCard('vip', false, '完成开户并达标后可选') + tierCard('standard', false, '完成开户并达标后可选'))
     + rulesPanel()
@@ -347,8 +348,8 @@ function pageNoAccount(){
 function pageOpenedOld(){
   return kv()
     + `<div class="section"><div class="status-card warn">
-        <h3>本活动仅限 2026 年 8 月 1 日起开户成功的客户参与</h3>
-        <div class="muted">您可浏览活动内容，但无法参与报名。</div>
+        <h3>本活动仅限 2026 年 7 月 1 日起开户成功的客户参与</h3>
+        <div class="muted">您可浏览活动内容，但无法参与领票。</div>
       </div></div>`
     + eventCard(tierCard('vip', false, '仅限新开户客户参与') + tierCard('standard', false, '仅限新开户客户参与'))
     + rulesPanel();
@@ -373,7 +374,7 @@ function pageBooked(){
     + `<div class="section"><div class="card">
         <div class="success-hero">
           <div class="check">✓</div>
-          <h3>报名成功</h3>
+          <h3>领票成功</h3>
           <div class="muted">您的门票已确认预留</div>
           <div class="muted" style="margin-top:6px">${EVENT.artist} · ${EVENT.date} · ${EVENT.venue} · ${tier.name}</div>
         </div>
@@ -381,22 +382,21 @@ function pageBooked(){
       <div class="card">
         <div class="sec-title">接下来会发生什么</div>
         <div class="step"><div class="step-num">1</div><div class="step-body">
-          <b>门票制作</b><p>报名成功后，我们将统一安排门票制作。</p>
+          <b>门票制作</b><p>领票成功后，我们将统一安排门票制作。</p>
         </div></div>
         <div class="step"><div class="step-num">2</div><div class="step-body">
-          <b>寄送门票</b><p>制作完成后，门票将于演出前 7-10 天寄出，寄出时您将收到邮件通知。寄票前我们将核实您在活动期间的交易手数（标准档 ≥ 5 手 / VIP 档 ≥ 10 手），核实通过后安排寄出。</p>
+          <b>寄送门票</b><p>制作完成后，门票将于演出前 7-10 天寄出，寄出时您将收到邮件通知。</p>
         </div></div>
         <div class="step"><div class="step-num">3</div><div class="step-body">
           <b>签收门票</b><p>请保持手机畅通，及时签收。</p>
         </div></div>
-        <div class="notice">若交易手数未满足要求，将不予寄票，核实结果将以邮件通知。</div>
       </div>
       <div class="card">
         <div class="sec-title">收件信息</div>
         <div class="info-row"><span class="k">收件人</span><span class="v">${esc(reg.name)}</span></div>
         <div class="info-row"><span class="k">地址</span><span class="v">${esc(reg.region)} ${esc(reg.address)}</span></div>
         <div class="info-row"><span class="k">电话</span><span class="v">${esc(reg.phone_code)} ${esc(reg.phone)}</span></div>
-        ${activityPhase() === 'closed' ? '' : '<div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（报名截止日前可修改）</span></div>'}
+        ${activityPhase() === 'closed' ? '' : '<div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（领票截止日前可修改）</span></div>'}
       </div>
       <div class="card">
         <div class="sec-title">到场须知</div>
@@ -441,22 +441,22 @@ function bindMain(){
     const b = $('#' + id);
     if (b) b.addEventListener('click', demoToast);
   });
-  // 票档卡点击：可报名 → 地址页；置灰 → toast 原因
+  // 票档卡点击：可领票 → 地址页；置灰 → toast 原因
   document.querySelectorAll('.tier').forEach(el => {
     el.addEventListener('click', () => {
       if (el.dataset.enabled === '1') openAddress('register', el.dataset.tier);
-      else toast(el.dataset.lock || '当前不可报名');
+      else toast(el.dataset.lock || '当前不可领票');
     });
   });
   // 已达标进度卡点击 → 地址页（与票档卡等效入口；v2.1：过截止 / 已售罄时拦截）
   document.querySelectorAll('.pg-tier.unlocked').forEach(el => {
     el.addEventListener('click', () => {
-      if (activityPhase() === 'closed') return toast('报名已截止');
+      if (activityPhase() === 'closed') return toast('领票已截止');
       if (tierRemaining(el.dataset.pgtier) <= 0) return toast('已售罄');
       openAddress('register', el.dataset.pgtier);
     });
   });
-  // 已报名页：修改收件信息
+  // 已领票页：修改收件信息
   const edit = $('#edit-addr');
   if (edit) edit.addEventListener('click', () => openAddress('edit', currentReg().ticket_type));
 }
@@ -552,10 +552,10 @@ function submitAddress(){
     registration = data;
     STOCK[selectedTier + '_used'] += 1;   // mock 扣减库存
     scene = '4';
-    renderDemoBar();                      // demo 栏同步切到「状态 4 · 已报名」
+    renderDemoBar();                      // demo 栏同步切到「状态 4 · 已领票」
     closeAddress();
     renderMain();
-    toast('报名成功');
+    toast('领票成功');
   }
 }
 
