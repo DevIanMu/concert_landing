@@ -107,9 +107,8 @@ body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang S
 .phone-row select{width:108px;flex-shrink:0}
 .summary-strip{background:#eef3ff;border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink2)}
 .summary-strip b{color:var(--ink)}
-.addr-actions{margin-top:22px}
-.addr-actions .hint{text-align:center;font-size:12px;color:var(--ink3);margin-top:8px}
-.addr-actions .row{display:flex;gap:10px}
+.cta-bar .hint{text-align:center;font-size:12px;color:var(--ink3);margin-top:8px}
+.cta-bar .row{display:flex;gap:10px}
 /* ===== Toast ===== */
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(20,24,38,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:20px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;max-width:80%;text-align:center}
 .toast.show{opacity:1}
@@ -124,7 +123,7 @@ body{background:#e9ebf0;font-family:-apple-system,BlinkMacSystemFont,"PingFang S
   </div>
   <div id="page-address" hidden>
     <nav class="nav"><button class="nav-back" id="addr-back">‹</button><span id="addr-title"></span></nav>
-    <div id="addr-body" style="padding:14px"></div>
+    <div id="addr-body" style="padding:14px 14px 132px"></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -163,7 +162,7 @@ const TIERS = {
   vip:      { name: 'VIP 档', price: '票面 HKD 1,888',    cond: '单日净入资 ≥ 100 万 HKD · 连续 30 天总资产 ≥ 100 万' },
   standard: { name: '标准档', price: '票面 HKD 888–999',  cond: '单日净入资 ≥ 10 万 HKD · 连续 30 天总资产 ≥ 10 万' }
 };
-// GET /api/concert/status mock：10 个演示场景
+// GET /api/concert/status mock：12 个演示场景
 // activity_phase 全局活动阶段（v2.1 新增）：not_started / open / closed / ended
 const SCENARIOS = [
   { id: '0',          label: '状态 0 · 访客（未登录）',        activity_phase: 'open' },
@@ -176,6 +175,8 @@ const SCENARIOS = [
     stock: { vip_total: 10, vip_used: 10, standard_total: 15, standard_used: 15 } },
   { id: '2-closed',   label: '状态 2 · 已达标 · 已过领票截止', activity_phase: 'closed' },
   { id: '4',          label: '状态 4 · 已领票',                activity_phase: 'open' },
+  { id: '4-pending',  label: '状态 4 · 已领票 · 待填收件信息', activity_phase: 'open' },
+  { id: '4-pending-closed', label: '状态 4 · 待填收件信息 · 已过截止', activity_phase: 'closed' },
   { id: '5',          label: '状态 5 · 已结束',                activity_phase: 'open' }
 ];
 const QUAL = {
@@ -208,7 +209,8 @@ const DEFAULT_REG = {
 let scene = '0';                 // 当前演示场景
 let registration = null;         // 领票成功后写入 {ticket_type, name, region, address, phone_code, phone}
 let selectedTier = null;         // 地址页所选手档 'vip' | 'standard'
-let addressMode = 'register';    // 'register' | 'edit'
+let pendingTier = null;          // 「稍后再填」锁名额的档位（待补填场景展示用）
+let addressMode = 'register';    // 'register' | 'fill' | 'edit'
 const currentReg = () => registration || DEFAULT_REG;
 
 // == Demo 专用栏（非产品设计） ==
@@ -368,16 +370,36 @@ function pageOpened(qual){
   return html;
 }
 function pageBooked(){
+  const pending = scene === '4-pending' || scene === '4-pending-closed';
+  const closed = activityPhase() === 'closed';
+  const forfeited = pending && closed;          // 逾期未补填：名额失效
   const reg = currentReg();
-  const tier = TIERS[reg.ticket_type];
+  const tier = TIERS[pending ? (pendingTier || 'standard') : reg.ticket_type];
+  const heroSub = forfeited
+    ? '逾期未提交收件信息，名额已失效'
+    : (pending ? '门票已预留，请于 9 月 16 日前补填收件信息，逾期视为放弃' : '您的门票已确认预留');
+  const addrCard = pending
+    ? `<div class="card">
+        <div class="sec-title">收件信息</div>
+        <div class="muted">尚未填写收件信息</div>
+        ${forfeited ? '' : '<div style="margin-top:12px"><button class="cta" id="fill-addr">填写收件信息</button><div class="hint" style="text-align:center;font-size:12px;color:var(--ink3);margin-top:8px">领票截止日（2026-09-16）前提交即可正常寄票</div></div>'}
+      </div>`
+    : `<div class="card">
+        <div class="sec-title">收件信息</div>
+        <div class="info-row"><span class="k">收件人</span><span class="v">${esc(reg.name)}</span></div>
+        <div class="info-row"><span class="k">地址</span><span class="v">${esc(reg.region)} ${esc(reg.address)}</span></div>
+        <div class="info-row"><span class="k">电话</span><span class="v">${esc(reg.phone_code)} ${esc(reg.phone)}</span></div>
+        ${closed ? '' : '<div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（领票截止日前可修改）</span></div>'}
+      </div>`;
   return kv()
     + `<div class="section"><div class="card">
         <div class="success-hero">
-          <div class="check">✓</div>
-          <h3>领票成功</h3>
-          <div class="muted">您的门票已确认预留</div>
+          <div class="check"${forfeited ? ' style="background:var(--ink3)"' : ''}>${forfeited ? '✕' : '✓'}</div>
+          <h3>${forfeited ? '名额已失效' : '领票成功'}</h3>
+          <div class="muted">${heroSub}</div>
           <div class="muted" style="margin-top:6px">${EVENT.artist} · ${EVENT.date} · ${EVENT.venue} · ${tier.name}</div>
         </div>
+        ${pending && !forfeited ? '<div class="notice">请尽快补填收件信息，逾期视为放弃</div>' : ''}
       </div>
       <div class="card">
         <div class="sec-title">接下来会发生什么</div>
@@ -391,13 +413,7 @@ function pageBooked(){
           <b>签收门票</b><p>请保持手机畅通，及时签收。</p>
         </div></div>
       </div>
-      <div class="card">
-        <div class="sec-title">收件信息</div>
-        <div class="info-row"><span class="k">收件人</span><span class="v">${esc(reg.name)}</span></div>
-        <div class="info-row"><span class="k">地址</span><span class="v">${esc(reg.region)} ${esc(reg.address)}</span></div>
-        <div class="info-row"><span class="k">电话</span><span class="v">${esc(reg.phone_code)} ${esc(reg.phone)}</span></div>
-        ${activityPhase() === 'closed' ? '' : '<div style="margin-top:10px"><span class="link" id="edit-addr">修改收件信息</span> <span class="muted">（领票截止日前可修改）</span></div>'}
-      </div>
+      ${addrCard}
       <div class="card">
         <div class="sec-title">到场须知</div>
         <div class="muted">🎫 请携带实体门票入场。</div>
@@ -413,10 +429,6 @@ function pageEnded(){
           <div class="muted">感谢您的参与，期待与您再次相见。</div>
           <div class="muted" style="margin-top:6px">${EVENT.artist} · ${EVENT.date} · ${EVENT.venue}</div>
         </div>
-      </div>
-      <div class="card" style="text-align:center">
-        <div class="muted" style="margin-bottom:10px">邀请您花 1 分钟完成满意度问卷，帮助我们做得更好。</div>
-        <button class="cta secondary" id="cta-survey">填写满意度问卷</button>
       </div></div>`;
 }
 
@@ -429,7 +441,7 @@ function renderMain(){
   else if (scene === '1') html = pageNoAccount();
   else if (scene === '2-old') html = pageOpenedOld();
   else if (scene === '2-progress' || scene === '2-standard' || scene === '2-vip' || scene === '2-soldout' || scene === '2-closed') html = pageOpened(QUAL[scene]);
-  else if (scene === '4') html = pageBooked();
+  else if (scene === '4' || scene === '4-pending' || scene === '4-pending-closed') html = pageBooked();
   else if (scene === '5') html = pageEnded();
   $('#app').innerHTML = html;
   bindMain();
@@ -437,7 +449,7 @@ function renderMain(){
 }
 function bindMain(){
   // 演示占位按钮
-  ['cta-login', 'cta-open', 'cta-deposit', 'cta-survey'].forEach(id => {
+  ['cta-login', 'cta-open', 'cta-deposit'].forEach(id => {
     const b = $('#' + id);
     if (b) b.addEventListener('click', demoToast);
   });
@@ -459,6 +471,9 @@ function bindMain(){
   // 已领票页：修改收件信息
   const edit = $('#edit-addr');
   if (edit) edit.addEventListener('click', () => openAddress('edit', currentReg().ticket_type));
+  // 待补填：填写收件信息（补填，名额已锁定）
+  const fill = $('#fill-addr');
+  if (fill) fill.addEventListener('click', () => openAddress('fill', pendingTier || 'standard'));
 }
 
 // == 地址页 ==
@@ -509,10 +524,12 @@ function renderAddressForm(){
       </div>
       <div class="msg">请输入手机号码</div>
     </div>
-    <div class="addr-actions">
+    <div class="cta-bar">
       ${addressMode === 'edit'
         ? '<div class="row"><button class="cta secondary" id="addr-cancel" style="flex:1">取消</button><button class="cta" id="addr-submit" style="flex:2">保存</button></div><div class="hint">保存后将更新收件信息</div>'
-        : '<button class="cta" id="addr-submit">确认提交</button><div class="hint">提交后将锁定名额</div>'}
+        : addressMode === 'fill'
+          ? '<button class="cta" id="addr-submit">确认提交</button><div class="hint">领票截止日（2026-09-16）前提交即可正常寄票</div>'
+          : '<div class="row"><button class="cta secondary" id="addr-skip" style="flex:1">稍后再填</button><button class="cta" id="addr-submit" style="flex:2">确认提交</button></div><div class="hint">先锁定名额，9 月 16 日（含）前补填即可正常寄票</div>'}
     </div>`;
   // 输入时清除错误态
   ['f-name', 'f-region', 'f-addr', 'f-phone'].forEach(id => {
@@ -520,6 +537,8 @@ function renderAddressForm(){
   });
   const cancel = $('#addr-cancel');
   if (cancel) cancel.addEventListener('click', closeAddress);
+  const skip = $('#addr-skip');
+  if (skip) skip.addEventListener('click', skipAddress);
   $('#addr-submit').addEventListener('click', submitAddress);
 }
 function submitAddress(){
@@ -548,6 +567,14 @@ function submitAddress(){
     closeAddress();
     renderMain();
     toast('收件信息已保存');
+  } else if (addressMode === 'fill'){
+    registration = data;                  // 补填完成：名额此前已锁定，不再扣减库存
+    pendingTier = null;
+    scene = '4';
+    renderDemoBar();                      // demo 栏同步切到「状态 4 · 已领票」
+    closeAddress();
+    renderMain();
+    toast('收件信息已保存');
   } else {
     registration = data;
     STOCK[selectedTier + '_used'] += 1;   // mock 扣减库存
@@ -557,6 +584,17 @@ function submitAddress(){
     renderMain();
     toast('领票成功');
   }
+}
+// 「稍后再填」：只锁名额不填地址，进入状态 4 待补填子态
+function skipAddress(){
+  registration = null;
+  pendingTier = selectedTier;
+  STOCK[selectedTier + '_used'] += 1;   // mock 扣减库存（先锁名额）
+  scene = '4-pending';
+  renderDemoBar();                      // demo 栏同步切到「状态 4 · 已领票 · 待填收件信息」
+  closeAddress();
+  renderMain();
+  toast('领票成功');
 }
 
 // == 启动 ==
